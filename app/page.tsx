@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { Parser } from 'json2csv'; // Importação da biblioteca de exportação
+// @ts-ignore
+import { Parser } from 'json2csv';
 
 const CATEGORIAS_OPCOES = [
   { label: '🏷️ Geral', value: 'Geral' },
@@ -21,7 +22,6 @@ export default function Home() {
   const [lancamentos, setLancamentos] = useState<any[]>([]);
   const [metaMensal, setMetaMensal] = useState(10000);
   const [editandoMeta, setEditandoMeta] = useState(false);
-  
   const [dataVisualizacao, setDataVisualizacao] = useState(new Date());
 
   const [idEmEdicao, setIdEmEdicao] = useState<string | null>(null);
@@ -69,14 +69,12 @@ export default function Home() {
     }
   }
 
-  // FUNÇÃO DE EXPORTAÇÃO
   const exportarCSV = () => {
     try {
       const fields = ['data_vencimento', 'descricao', 'valor', 'tipo', 'categoria', 'status'];
       const opts = { fields, delimiter: ';', quote: '' };
       const parser = new Parser(opts);
       const csv = parser.parse(lancamentosExibidos);
-      
       const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -207,15 +205,19 @@ export default function Home() {
             </div>
         </div>
 
-        <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[250px] flex flex-col items-center">
-          <p className="text-zinc-500 text-[9px] font-black uppercase mb-4">Distribuição Mensal</p>
+        {/* BOX DO GRÁFICO CORRIGIDO */}
+        <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[280px] flex flex-col items-center overflow-hidden">
+          <p className="text-zinc-500 text-[9px] font-black uppercase mb-2">Distribuição Mensal</p>
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={gastosPorCategoria} innerRadius={50} outerRadius={70} paddingAngle={8} dataKey="value" stroke="none">
+            <PieChart margin={{ top: 10, bottom: 30, left: 10, right: 10 }}>
+              <Pie data={gastosPorCategoria} innerRadius={45} outerRadius={65} paddingAngle={8} dataKey="value" stroke="none">
                 {gastosPorCategoria.map((entry, index) => <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />)}
               </Pie>
-              <Tooltip contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', fontSize: '10px' }} />
-              <Legend verticalAlign="bottom" height={36} wrapperStyle={{ color: '#a1a1aa', fontSize: '10px', fontWeight: 'bold' }} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', fontSize: '10px' }}
+                itemStyle={{ color: '#fff' }}
+              />
+              <Legend verticalAlign="bottom" height={36} wrapperStyle={{ color: '#a1a1aa', fontSize: '10px', fontWeight: 'bold', paddingTop: '10px' }} />
             </PieChart>
           </ResponsiveContainer>
         </div>

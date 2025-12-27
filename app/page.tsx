@@ -23,6 +23,7 @@ export default function GSAFlowSaaS() {
   const [dataVisualizacao, setDataVisualizacao] = useState(new Date());
   const [abaAtiva, setAbaAtiva] = useState<'mes' | 'ano'>('mes');
   const [filtroCategoria, setFiltroCategoria] = useState('Todas');
+  const [mostrarConfig, setMostrarConfig] = useState(false);
 
   // Estados de Cadastro de Lançamento
   const [idEmEdicao, setIdEmEdicao] = useState<string | null>(null);
@@ -33,6 +34,11 @@ export default function GSAFlowSaaS() {
   const [novaCategoria, setNovaCategoria] = useState('Freelancer');
   const [novaRecorrencia, setNovaRecorrencia] = useState('unico');
   const [novoComprovante, setNovoComprovante] = useState('');
+
+  // Estados de Configuração de Perfil
+  const [editNomeEmpresa, setEditNomeEmpresa] = useState('');
+  const [editMeta, setEditMeta] = useState(0);
+  const [novaCatInput, setNovaCatInput] = useState('');
 
   useEffect(() => {
     const sessionInit = async () => {
@@ -49,23 +55,43 @@ export default function GSAFlowSaaS() {
 
   async function carregarDadosSaaS(userId: string) {
     let { data: prof } = await supabase.from('perfis_usuarios').select('*').eq('id', userId).single();
-    
     if (prof) {
       setPerfil(prof);
+      setEditNomeEmpresa(prof.nome_empresa);
+      setEditMeta(prof.meta_faturamento);
     } else {
-      // Configuração padrão para NOVOS USUÁRIOS
       const categoriasPadrao = ['Freelancer', 'Pessoal', 'Transporte', 'Fixos', 'Contas'];
       const { data: novoProf } = await supabase.from('perfis_usuarios').insert({ 
-        id: userId, 
-        nome_empresa: 'Meu Negócio', 
-        meta_faturamento: 10000,
-        categorias: categoriasPadrao
+        id: userId, nome_empresa: 'Meu Negócio', meta_faturamento: 10000, categorias: categoriasPadrao
       }).select().single();
-      
       if (novoProf) setPerfil(novoProf);
     }
     carregarLancamentos();
   }
+
+  async function atualizarPerfil() {
+    const { error } = await supabase.from('perfis_usuarios').update({
+      nome_empresa: editNomeEmpresa,
+      meta_faturamento: editMeta,
+      categorias: perfil.categorias
+    }).eq('id', user.id);
+    if (!error) {
+      setPerfil({...perfil, nome_empresa: editNomeEmpresa, meta_faturamento: editMeta});
+      setMostrarConfig(false);
+    }
+  }
+
+  const addCategoria = () => {
+    if (!novaCatInput || perfil.categorias.includes(novaCatInput)) return;
+    const novasCats = [...perfil.categorias, novaCatInput];
+    setPerfil({...perfil, categorias: novasCats});
+    setNovaCatInput('');
+  };
+
+  const removeCategoria = (cat: string) => {
+    const novasCats = perfil.categorias.filter(c => c !== cat);
+    setPerfil({...perfil, categorias: novasCats});
+  };
 
   async function carregarLancamentos() {
     const { data } = await supabase.from('lancamentos').select('*');
@@ -140,13 +166,9 @@ export default function GSAFlowSaaS() {
         <form onSubmit={handleAuth} className="space-y-4 text-left">
           <input type="email" placeholder="Seu E-mail" className="w-full bg-zinc-950 p-4 rounded-2xl border border-zinc-800 outline-none focus:border-blue-500 transition-all text-sm" value={email} onChange={e => setEmail(e.target.value)} required />
           <input type="password" placeholder="Sua Senha" className="w-full bg-zinc-950 p-4 rounded-2xl border border-zinc-800 outline-none focus:border-blue-500 transition-all text-sm" value={password} onChange={e => setPassword(e.target.value)} required />
-          <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black p-4 rounded-2xl transition-all uppercase text-xs tracking-widest shadow-lg shadow-blue-600/20">
-            {isSignUp ? 'Criar Conta Grátis' : 'Acessar Meu Cockpit'}
-          </button>
+          <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black p-4 rounded-2xl transition-all uppercase text-xs tracking-widest shadow-lg shadow-blue-600/20">{isSignUp ? 'Criar Conta' : 'Entrar'}</button>
         </form>
-        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full mt-8 text-zinc-500 text-[9px] font-black uppercase hover:text-white transition-all tracking-widest">
-          {isSignUp ? 'Já tem uma conta? Login' : 'Não tem conta? Registre-se agora'}
-        </button>
+        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full mt-8 text-zinc-500 text-[9px] font-black uppercase tracking-widest">{isSignUp ? 'Já tem conta? Login' : 'Novo? Registre-se'}</button>
       </div>
     </div>
   );
@@ -180,16 +202,48 @@ export default function GSAFlowSaaS() {
     };
   });
 
-  const CORES = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'];
+  const CORES = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899'];
 
   return (
     <div className="min-h-screen bg-[#0b0e14] text-white p-4 sm:p-8 font-sans text-sm pb-24">
       
-      {/* ALERTA DE ATRASO GLOBAL */}
-      {itensAtrasadosGeral.length > 0 && (
-        <div className="max-w-6xl mx-auto mb-6 bg-red-600/10 border border-red-500/30 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-pulse-slow">
-           <div className="flex items-center gap-3"><span className="text-xl">⚠️</span><p className="text-xs font-bold">Olá {perfil.nome_empresa}! Há {itensAtrasadosGeral.length} pendências fora do prazo.</p></div>
-           <button onClick={() => setDataVisualizacao(new Date(itensAtrasadosGeral[0].data_vencimento + 'T00:00:00'))} className="bg-red-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase shadow-lg shadow-red-600/20">Resolver Atrasos</button>
+      {/* MODAL DE CONFIGURAÇÃO */}
+      {mostrarConfig && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2.5rem] w-full max-w-lg shadow-2xl">
+            <h2 className="text-xl font-black text-blue-500 uppercase italic mb-6">Configurações da Conta</h2>
+            
+            <div className="space-y-4 mb-8">
+              <div>
+                <label className="text-[9px] font-black uppercase text-zinc-500 ml-2">Nome do Negócio</label>
+                <input type="text" className="w-full bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-xs" value={editNomeEmpresa} onChange={e => setEditNomeEmpresa(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-[9px] font-black uppercase text-zinc-500 ml-2">Meta de Receita (R$)</label>
+                <input type="number" className="w-full bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-xs" value={editMeta} onChange={e => setEditMeta(Number(e.target.value))} />
+              </div>
+              
+              <div>
+                <label className="text-[9px] font-black uppercase text-zinc-500 ml-2">Minhas Categorias</label>
+                <div className="flex gap-2 mt-1 mb-3">
+                  <input type="text" placeholder="Nova..." className="flex-1 bg-zinc-950 p-2 rounded-xl border border-zinc-800 text-xs" value={novaCatInput} onChange={e => setNovaCatInput(e.target.value)} />
+                  <button onClick={addCategoria} className="bg-blue-600 px-4 rounded-xl font-black">+</button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {perfil.categorias.map(cat => (
+                    <span key={cat} className="bg-zinc-800 px-3 py-1.5 rounded-lg text-[9px] font-bold flex items-center gap-2">
+                      {cat} <button onClick={() => removeCategoria(cat)} className="text-red-500 font-black">×</button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button onClick={atualizarPerfil} className="flex-1 bg-blue-600 p-3 rounded-xl font-black uppercase text-[10px]">Salvar Alterações</button>
+              <button onClick={() => setMostrarConfig(false)} className="bg-zinc-800 p-3 rounded-xl font-black uppercase text-[10px]">Cancelar</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -198,21 +252,24 @@ export default function GSAFlowSaaS() {
         <div className="text-center sm:text-left">
             <h1 className="text-3xl font-black text-blue-500 tracking-tighter italic uppercase leading-none">{perfil.nome_empresa}</h1>
             <div className="flex items-center gap-4 mt-2 text-zinc-500">
-                <button onClick={() => mudarMes(-1)} className="hover:text-blue-500 transition-colors">◀</button>
+                <button onClick={() => mudarMes(-1)} className="hover:text-blue-500">◀</button>
                 <p className="text-[10px] font-black uppercase tracking-widest min-w-[140px] text-center">{new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(dataVisualizacao)}</p>
-                <button onClick={() => mudarMes(1)} className="hover:text-blue-500 transition-colors">▶</button>
+                <button onClick={() => mudarMes(1)} className="hover:text-blue-500">▶</button>
             </div>
         </div>
         <div className="flex gap-2 bg-zinc-900 p-1 rounded-full border border-zinc-800">
           <button onClick={() => setAbaAtiva('mes')} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase transition-all ${abaAtiva === 'mes' ? 'bg-blue-600 text-white' : 'text-zinc-600'}`}>Mensal</button>
           <button onClick={() => setAbaAtiva('ano')} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase transition-all ${abaAtiva === 'ano' ? 'bg-blue-600 text-white' : 'text-zinc-600'}`}>Anual</button>
         </div>
-        <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-zinc-600 hover:text-white text-[9px] font-black uppercase bg-zinc-900/50 px-4 py-2 rounded-full border border-zinc-800 transition-all">Sair</button>
+        <div className="flex gap-2">
+          <button onClick={() => setMostrarConfig(true)} className="p-2 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white transition-all">⚙️</button>
+          <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-zinc-600 hover:text-white text-[9px] font-black uppercase bg-zinc-900/50 px-4 py-2 rounded-full border border-zinc-800 transition-all">Sair</button>
+        </div>
       </header>
 
       {abaAtiva === 'mes' ? (
         <>
-          <div className="max-w-6xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 text-center sm:text-left">
+          <div className="max-w-6xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div className="bg-blue-600/10 border border-blue-500/20 p-6 rounded-[2rem]"><p className="text-blue-400 text-[8px] font-black uppercase mb-1">Entradas</p><h2 className="text-2xl font-black italic">R$ {totalReceitas.toLocaleString('pt-BR')}</h2></div>
             <div className="bg-red-600/10 border border-red-500/20 p-6 rounded-[2rem]"><p className="text-red-400 text-[8px] font-black uppercase mb-1">Saídas</p><h2 className="text-2xl font-black italic">R$ {totalDespesas.toLocaleString('pt-BR')}</h2></div>
             <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem]"><p className="text-zinc-500 text-[8px] font-black uppercase mb-1">Resultado</p><h2 className={`text-2xl font-black italic ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>R$ {lucroLiquido.toLocaleString('pt-BR')}</h2></div>
@@ -254,7 +311,7 @@ export default function GSAFlowSaaS() {
         </div>
       )}
 
-      {/* FORMULÁRIO DE LANÇAMENTO */}
+      {/* FORMULÁRIO */}
       <div className={`max-w-6xl mx-auto p-6 rounded-[2.5rem] border mb-10 transition-all ${idEmEdicao ? 'bg-blue-600/10 border-blue-500' : 'bg-zinc-900/40 border-zinc-800/50'}`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           <div className="flex bg-zinc-950 rounded-xl p-1 h-12">
@@ -266,21 +323,21 @@ export default function GSAFlowSaaS() {
             {perfil.categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
           </select>
           <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-xs font-bold text-white uppercase" value={novaRecorrencia} onChange={e => setNovaRecorrencia(e.target.value)} disabled={!!idEmEdicao}>
-            <option value="unico">Pagamento Único</option>
-            <option value="mensal">Recorrência Mensal</option>
+            <option value="unico">Único</option>
+            <option value="mensal">Mensal (12x)</option>
           </select>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
-          <input type="text" placeholder="Descrição rápida" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 outline-none text-xs text-white lg:col-span-1" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
+          <input type="text" placeholder="Descrição" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 outline-none text-xs text-white" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
           <input type="number" placeholder="Valor R$" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 outline-none font-mono text-xs text-white" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
-          <input type="text" placeholder="Link do comprovante" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 outline-none text-xs text-white" value={novoComprovante} onChange={e => setNovoComprovante(e.target.value)} />
+          <input type="text" placeholder="Link/Notas" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 outline-none text-xs text-white" value={novoComprovante} onChange={e => setNovoComprovante(e.target.value)} />
           <button onClick={salvarLancamento} className="bg-blue-600 hover:bg-blue-500 text-white font-black h-12 rounded-xl text-[9px] uppercase tracking-widest shadow-lg shadow-blue-600/20 transition-all">
             {idEmEdicao ? 'Confirmar' : 'Lançar'}
           </button>
         </div>
       </div>
 
-      {/* FILTROS E LISTAGEM */}
+      {/* LISTA E FILTROS */}
       <div className="max-w-6xl mx-auto space-y-2">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 px-4 gap-4">
             <div className="flex gap-2 overflow-x-auto no-scrollbar w-full sm:w-auto">
@@ -291,10 +348,6 @@ export default function GSAFlowSaaS() {
             </div>
             <button onClick={exportarCSV} className="text-zinc-500 hover:text-white transition-all text-xl p-2 bg-zinc-900 border border-zinc-800 rounded-xl">📥</button>
         </div>
-
-        {lancamentosExibidos.length === 0 && (
-            <div className="text-center py-20 bg-zinc-900/10 border border-zinc-800/50 rounded-[2rem] text-zinc-700 font-black uppercase text-[10px] tracking-[0.4em]">Nenhum registro encontrado</div>
-        )}
 
         {lancamentosExibidos.map((item) => {
           const estaAtrasado = item.status === 'agendado' && new Date(item.data_vencimento + 'T00:00:00') < hoje;
@@ -308,7 +361,7 @@ export default function GSAFlowSaaS() {
                 <div className="overflow-hidden">
                   <div className="flex items-center gap-2">
                     <p className={`font-bold truncate max-w-[200px] sm:max-w-[300px] ${eConfirmado ? 'line-through text-zinc-600' : 'text-zinc-200'}`}>{item.descricao}</p>
-                    {item.comprovante_url && <a href={item.comprovante_url} target="_blank" className="text-[10px] hover:scale-125 transition-transform">📎</a>}
+                    {item.comprovante_url && <a href={item.comprovante_url} target="_blank" className="text-[10px]">📎</a>}
                   </div>
                   <p className="text-[8px] font-black uppercase text-zinc-600 tracking-widest">{item.categoria}</p>
                 </div>
@@ -318,7 +371,7 @@ export default function GSAFlowSaaS() {
                     {item.tipo === 'entrada' ? '+' : '-'} R$ {Number(item.valor).toLocaleString('pt-BR')}
                 </span>
                 <div className="flex gap-2">
-                  {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarLancamentos(); }} className="bg-white text-black text-[8px] font-black px-4 py-2 rounded-full hover:bg-blue-500 hover:text-white transition-all uppercase leading-none h-8 shadow-md">Confirmar</button>}
+                  {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarLancamentos(); }} className="bg-white text-black text-[8px] font-black px-4 py-2 rounded-full hover:bg-blue-500 hover:text-white transition-all uppercase h-8">OK</button>}
                   <button onClick={() => { setIdEmEdicao(item.id); setNovaDescricao(item.descricao); setNovoValor(item.valor.toString()); setNovaData(item.data_vencimento); setNovoTipo(item.tipo); setNovaCategoria(item.categoria); setNovoComprovante(item.comprovante_url || ''); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-zinc-600 hover:text-white p-2">✏️</button>
                   <button onClick={async () => { if(confirm('Remover?')) { await supabase.from('lancamentos').delete().eq('id', item.id); carregarLancamentos(); } }} className="text-zinc-800 hover:text-red-500 p-2">🗑️</button>
                 </div>

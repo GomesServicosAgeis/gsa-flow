@@ -81,7 +81,7 @@ export default function Home() {
   });
 
   const totalReceitas = lancamentosDoMes.filter(i => i.tipo === 'entrada').reduce((acc, i) => acc + Number(i.valor), 0);
-  const totalDespesas = lancamentosDoMes.filter(i => i.tipo === 'saida').reduce((acc, i) => acc + Number(i.valor) : acc, 0);
+  const totalDespesas = lancamentosDoMes.filter(i => i.tipo === 'saida').reduce((acc, i) => acc + Number(i.valor), 0);
   const lucroLiquido = totalReceitas - totalDespesas;
   const saldoCaixaGeral = lancamentos.reduce((acc, item) => item.status === 'agendado' ? acc : (item.tipo === 'entrada' ? acc + Number(item.valor) : acc - Number(item.valor)), 0);
   const progressoMeta = Math.min((totalReceitas / metaMensal) * 100, 100);
@@ -103,7 +103,6 @@ export default function Home() {
         <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-zinc-600 hover:text-white transition-all text-[9px] font-black uppercase bg-zinc-900/50 px-3 py-1.5 rounded-full border border-zinc-800">Sair</button>
       </header>
 
-      {/* CARDS RESUMO */}
       <div className="max-w-6xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <div className="bg-blue-600/10 border border-blue-500/20 p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem]">
           <p className="text-blue-400 text-[8px] font-black mb-1 tracking-widest uppercase">Receita</p>
@@ -125,7 +124,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* META E GRÁFICO */}
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
         <div className="lg:col-span-2 bg-zinc-900/20 border border-zinc-800 p-6 sm:p-8 rounded-[2rem] flex flex-col justify-center">
             <div className="flex justify-between items-end mb-4">
@@ -157,7 +155,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* FORMULÁRIO DE LANÇAMENTO */}
       <div className="max-w-6xl mx-auto bg-zinc-900/40 p-4 sm:p-6 rounded-[2rem] border border-zinc-800/50 mb-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           <div className="flex bg-zinc-950 rounded-xl p-1 h-12">
@@ -173,23 +170,22 @@ export default function Home() {
           <button onClick={async () => {
               if (!novaDescricao || !novoValor) return;
               await supabase.from('lancamentos').insert([{ descricao: novaDescricao, valor: Number(novoValor), tipo: novoTipo, status: 'agendado', data_vencimento: novaData, categoria: novaCategoria }]);
-              setNovaDescricao(''); setNovaValor(''); carregarDados();
+              setNovaDescricao(''); setNovoValor(''); carregarDados();
             }} className="bg-blue-600 text-white font-black h-12 rounded-xl hover:bg-blue-500 transition-all text-[10px] uppercase tracking-widest">Lançar</button>
         </div>
       </div>
 
-      {/* LISTA DE LANÇAMENTOS COM ALERTA DE ATRASO */}
       <div className="max-w-6xl mx-auto space-y-2 pb-20">
         <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] mb-4 ml-2 italic">Histórico de Fluxo</p>
         {lancamentos.map((item) => {
           const dataVenc = new Date(item.data_vencimento);
-          dataVenc.setHours(24, 0, 0, 0); // Ajuste para timezone
+          dataVenc.setHours(24, 0, 0, 0); 
           const estaAtrasado = item.status === 'agendado' && dataVenc < hoje;
 
           return (
             <div key={item.id} className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-2xl border transition-all gap-3 sm:gap-0 
               ${estaAtrasado 
-                ? 'bg-red-500/5 border-red-500/40 shadow-[0_0_15px_rgba(239,68,68,0.1)] animate-pulse-slow' 
+                ? 'bg-red-500/5 border-red-500/40 animate-pulse-slow' 
                 : 'bg-zinc-900/10 border-zinc-800/40 hover:bg-zinc-900/40'}`}>
               
               <div className="flex items-center gap-4 w-full sm:w-auto">

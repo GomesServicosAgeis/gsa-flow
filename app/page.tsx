@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 const CATEGORIAS_OPCOES = [
   { label: '🏷️ Geral', value: 'Geral' },
@@ -47,19 +47,13 @@ export default function Home() {
   async function carregarDados() {
     const { data } = await supabase.from('lancamentos').select('*');
     if (data) {
-      // Lógica de Ordenação Inteligente
       const ordenados = data.sort((a, b) => {
         const hoje = new Date();
         hoje.setHours(0, 0, 0, 0);
-        
         const dataA = new Date(a.data_vencimento);
         const dataB = new Date(b.data_vencimento);
-        
-        // Regra 1: Confirmados sempre por último
         if (a.status === 'confirmado' && b.status !== 'confirmado') return 1;
         if (a.status !== 'confirmado' && b.status === 'confirmado') return -1;
-        
-        // Regra 2: Entre os agendados, os mais antigos (vencidos) primeiro
         return dataA.getTime() - dataB.getTime();
       });
       setLancamentos(ordenados);
@@ -142,7 +136,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* META E GRÁFICO */}
+      {/* META E GRÁFICO CORRIGIDO */}
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
         <div className="lg:col-span-2 bg-zinc-900/20 border border-zinc-800 p-6 sm:p-8 rounded-[2rem] flex flex-col justify-center">
             <div className="flex justify-between items-end mb-4">
@@ -161,14 +155,18 @@ export default function Home() {
             <p className="mt-2 text-right text-[9px] font-bold text-zinc-500 italic uppercase tracking-tighter">{progressoMeta.toFixed(1)}% alcançado</p>
         </div>
 
-        <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[180px] flex flex-col items-center">
-          <p className="text-zinc-500 text-[9px] font-black uppercase mb-2">Gastos por Setor</p>
+        <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[280px] flex flex-col items-center">
+          <p className="text-zinc-500 text-[9px] font-black uppercase mb-4">Gastos por Setor</p>
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={gastosPorCategoria} innerRadius={45} outerRadius={60} paddingAngle={5} dataKey="value" stroke="none">
+            <PieChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+              <Pie data={gastosPorCategoria} innerRadius={50} outerRadius={70} paddingAngle={8} dataKey="value" stroke="none">
                 {gastosPorCategoria.map((entry, index) => <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />)}
               </Pie>
-              <Tooltip contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', fontSize: '10px' }} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '12px', fontSize: '11px', color: '#fff' }}
+                itemStyle={{ color: '#fff' }}
+              />
+              <Legend verticalAlign="bottom" height={36} wrapperStyle={{ color: '#a1a1aa', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -195,9 +193,9 @@ export default function Home() {
         </div>
       </div>
 
-      {/* LISTA ORGANIZADA POR URGÊNCIA */}
+      {/* LISTA ORGANIZADA */}
       <div className="max-w-6xl mx-auto space-y-2 pb-20">
-        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] mb-4 ml-2 italic">Histórico Inteligente (Prioridade: Atrasados ⚡)</p>
+        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] mb-4 ml-2 italic">Histórico de Fluxo</p>
         {lancamentos.map((item) => {
           const dataVenc = new Date(item.data_vencimento);
           dataVenc.setHours(24, 0, 0, 0); 

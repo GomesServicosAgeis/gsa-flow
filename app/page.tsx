@@ -60,11 +60,11 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center p-6 font-sans">
         <form onSubmit={handleLogin} className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem] w-full max-w-md shadow-2xl">
-          <h1 className="text-3xl font-black text-blue-500 mb-2 italic tracking-tighter text-center">GSA FLOW</h1>
-          <p className="text-zinc-500 text-[9px] mb-8 uppercase font-black tracking-[0.3em] text-center">Acesso Restrito • GSA</p>
+          <h1 className="text-3xl font-black text-blue-500 mb-2 italic tracking-tighter text-center uppercase">GSA FLOW</h1>
+          <p className="text-zinc-500 text-[9px] mb-8 uppercase font-black tracking-[0.3em] text-center">Gestão de Fluxo • GSA</p>
           <input type="email" placeholder="E-mail" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-4 outline-none text-white focus:border-blue-500 transition-all" value={email} onChange={e => setEmail(e.target.value)} />
           <input type="password" placeholder="Senha" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-6 outline-none text-white focus:border-blue-500 transition-all" value={password} onChange={e => setPassword(e.target.value)} />
-          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-xl hover:bg-blue-500 transition-all uppercase text-xs tracking-widest">Entrar</button>
+          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-xl hover:bg-blue-500 transition-all uppercase text-xs tracking-widest">Acessar Cockpit</button>
         </form>
       </div>
     );
@@ -72,6 +72,8 @@ export default function Home() {
 
   const mesAtual = new Date().getUTCMonth();
   const anoAtual = new Date().getUTCFullYear();
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
   
   const lancamentosDoMes = lancamentos.filter(i => {
     const d = new Date(i.data_vencimento);
@@ -79,7 +81,7 @@ export default function Home() {
   });
 
   const totalReceitas = lancamentosDoMes.filter(i => i.tipo === 'entrada').reduce((acc, i) => acc + Number(i.valor), 0);
-  const totalDespesas = lancamentosDoMes.filter(i => i.tipo === 'saida').reduce((acc, i) => acc + Number(i.valor), 0);
+  const totalDespesas = lancamentosDoMes.filter(i => i.tipo === 'saida').reduce((acc, i) => acc + Number(i.valor) : acc, 0);
   const lucroLiquido = totalReceitas - totalDespesas;
   const saldoCaixaGeral = lancamentos.reduce((acc, item) => item.status === 'agendado' ? acc : (item.tipo === 'entrada' ? acc + Number(item.valor) : acc - Number(item.valor)), 0);
   const progressoMeta = Math.min((totalReceitas / metaMensal) * 100, 100);
@@ -118,7 +120,7 @@ export default function Home() {
           </h2>
         </div>
         <div className="bg-zinc-900 border border-zinc-800/50 p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border-dashed">
-          <p className="text-zinc-600 text-[8px] font-black mb-1 tracking-widest uppercase">Saldo</p>
+          <p className="text-zinc-600 text-[8px] font-black mb-1 tracking-widest uppercase">Saldo Total</p>
           <h2 className="text-xl sm:text-3xl font-black tracking-tighter text-zinc-400 truncate">{saldoCaixaGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h2>
         </div>
       </div>
@@ -127,9 +129,9 @@ export default function Home() {
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
         <div className="lg:col-span-2 bg-zinc-900/20 border border-zinc-800 p-6 sm:p-8 rounded-[2rem] flex flex-col justify-center">
             <div className="flex justify-between items-end mb-4">
-                <p className="text-blue-400 text-[10px] font-black uppercase tracking-widest">Objetivo Mensal</p>
+                <p className="text-blue-400 text-[10px] font-black uppercase tracking-widest">Objetivo do Mês</p>
                 {editandoMeta ? (
-                    <input autoFocus type="number" className="bg-zinc-950 border border-blue-500 p-1 rounded text-right w-24 outline-none font-mono text-xs" onBlur={() => setEditandoMeta(false)} onChange={(e) => salvarMeta(e.target.value)} value={metaMensal}/>
+                    <input autoFocus type="number" className="bg-zinc-950 border border-blue-500 p-1 rounded text-right w-24 outline-none font-mono text-xs text-white" onBlur={() => setEditandoMeta(false)} onChange={(e) => salvarMeta(e.target.value)} value={metaMensal}/>
                 ) : (
                     <button onClick={() => setEditandoMeta(true)} className="text-[10px] font-black text-zinc-400 flex items-center gap-2">
                         {metaMensal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} ✏️
@@ -171,43 +173,67 @@ export default function Home() {
           <button onClick={async () => {
               if (!novaDescricao || !novoValor) return;
               await supabase.from('lancamentos').insert([{ descricao: novaDescricao, valor: Number(novoValor), tipo: novoTipo, status: 'agendado', data_vencimento: novaData, categoria: novaCategoria }]);
-              setNovaDescricao(''); setNovoValor(''); carregarDados();
+              setNovaDescricao(''); setNovaValor(''); carregarDados();
             }} className="bg-blue-600 text-white font-black h-12 rounded-xl hover:bg-blue-500 transition-all text-[10px] uppercase tracking-widest">Lançar</button>
         </div>
       </div>
 
-      {/* LISTA DE LANÇAMENTOS RESPONSIVA */}
+      {/* LISTA DE LANÇAMENTOS COM ALERTA DE ATRASO */}
       <div className="max-w-6xl mx-auto space-y-2 pb-20">
-        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] mb-4 ml-2 italic">Fluxo de Caixa</p>
-        {lancamentos.map((item) => (
-          <div key={item.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-zinc-900/10 p-4 rounded-2xl border border-zinc-800/40 group hover:bg-zinc-900/40 transition-all gap-3 sm:gap-0">
-            <div className="flex items-center gap-4 w-full sm:w-auto">
-              <span className="text-[9px] font-mono text-zinc-500 bg-zinc-800/30 px-2 py-1 rounded">
-                {new Date(item.data_vencimento).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}
-              </span>
-              <div className="overflow-hidden">
-                <p className="font-bold text-zinc-300 truncate max-w-[200px] sm:max-w-[300px]">{item.descricao}</p>
-                <div className="flex gap-2 items-center text-[8px] font-black uppercase tracking-widest text-zinc-600">
-                  <span className="text-blue-500/70">{item.categoria}</span>
-                  <span>•</span>
-                  <span>{item.status}</span>
+        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] mb-4 ml-2 italic">Histórico de Fluxo</p>
+        {lancamentos.map((item) => {
+          const dataVenc = new Date(item.data_vencimento);
+          dataVenc.setHours(24, 0, 0, 0); // Ajuste para timezone
+          const estaAtrasado = item.status === 'agendado' && dataVenc < hoje;
+
+          return (
+            <div key={item.id} className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-2xl border transition-all gap-3 sm:gap-0 
+              ${estaAtrasado 
+                ? 'bg-red-500/5 border-red-500/40 shadow-[0_0_15px_rgba(239,68,68,0.1)] animate-pulse-slow' 
+                : 'bg-zinc-900/10 border-zinc-800/40 hover:bg-zinc-900/40'}`}>
+              
+              <div className="flex items-center gap-4 w-full sm:w-auto">
+                <span className={`text-[9px] font-mono px-2 py-1 rounded ${estaAtrasado ? 'bg-red-500 text-white' : 'bg-zinc-800/30 text-zinc-500'}`}>
+                  {new Date(item.data_vencimento).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}
+                </span>
+                <div className="overflow-hidden">
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-zinc-300 truncate max-w-[200px] sm:max-w-[300px]">{item.descricao}</p>
+                    {estaAtrasado && <span className="text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">Atrasado</span>}
+                  </div>
+                  <div className="flex gap-2 items-center text-[8px] font-black uppercase tracking-widest text-zinc-600">
+                    <span className="text-blue-500/70">{item.categoria}</span>
+                    <span>•</span>
+                    <span>{item.status}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto border-t border-zinc-800/30 sm:border-none pt-2 sm:pt-0">
+                <span className={`font-black text-base sm:text-lg tracking-tighter ${item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>
+                  {item.tipo === 'entrada' ? '+' : '-'} {Number(item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </span>
+                <div className="flex gap-2">
+                  {item.status === 'agendado' && (
+                    <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarDados(); }} className="bg-zinc-100 text-black text-[8px] font-black px-3 py-1 rounded-full hover:bg-blue-500 hover:text-white transition-all">OK</button>
+                  )}
+                  <button onClick={async () => { await supabase.from('lancamentos').delete().eq('id', item.id); carregarDados(); }} className="opacity-100 sm:opacity-0 group-hover:opacity-100 text-zinc-700 hover:text-red-500 transition-all text-xs p-1">🗑️</button>
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto border-t border-zinc-800/30 sm:border-none pt-2 sm:pt-0">
-              <span className={`font-black text-base sm:text-lg tracking-tighter ${item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>
-                {item.tipo === 'entrada' ? '+' : '-'} {Number(item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-              </span>
-              <div className="flex gap-2">
-                {item.status === 'agendado' && (
-                  <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarDados(); }} className="bg-zinc-100 text-black text-[8px] font-black px-3 py-1 rounded-full hover:bg-blue-500 hover:text-white transition-all">OK</button>
-                )}
-                <button onClick={async () => { await supabase.from('lancamentos').delete().eq('id', item.id); carregarDados(); }} className="opacity-100 sm:opacity-0 group-hover:opacity-100 text-zinc-700 hover:text-red-500 transition-all text-xs p-1">🗑️</button>
-              </div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+      
+      <style jsx global>{`
+        @keyframes pulse-slow {
+          0%, 100% { border-color: rgba(239, 68, 68, 0.4); }
+          50% { border-color: rgba(239, 68, 68, 0.8); }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+      `}</style>
     </div>
   );
 }

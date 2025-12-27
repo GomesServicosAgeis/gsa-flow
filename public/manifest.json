@@ -1,0 +1,16 @@
+{
+  "name": "GSA FLOW",
+  "short_name": "GSAFLOW",
+  "description": "Gestão de Fluxo Gomes Serviços Ágeis",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0e14",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "https://supabase.com/favicons/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    }
+  ]
+}

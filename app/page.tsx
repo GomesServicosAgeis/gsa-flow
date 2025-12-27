@@ -21,7 +21,9 @@ export default function Home() {
   const [metaMensal, setMetaMensal] = useState(10000);
   const [editandoMeta, setEditandoMeta] = useState(false);
   
-  // Estados para lançamento (Novo ou Edição)
+  // Controle de Mês e Ano selecionado
+  const [dataVisualizacao, setDataVisualizacao] = useState(new Date());
+
   const [idEmEdicao, setIdEmEdicao] = useState<string | null>(null);
   const [novaDescricao, setNovaDescricao] = useState('');
   const [novoValor, setNovoValor] = useState('');
@@ -47,6 +49,12 @@ export default function Home() {
     localStorage.setItem('gsa_flow_meta', valor);
   };
 
+  const mudarMes = (direcao: number) => {
+    const nova = new Date(dataVisualizacao);
+    nova.setMonth(nova.getMonth() + direcao);
+    setDataVisualizacao(nova);
+  };
+
   async function carregarDados() {
     const { data } = await supabase.from('lancamentos').select('*');
     if (data) {
@@ -63,51 +71,17 @@ export default function Home() {
     }
   }
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) alert("Erro no login: " + error.message);
-    else window.location.reload();
-  };
-
-  const prepararEdicao = (item: any) => {
-    setIdEmEdicao(item.id);
-    setNovaDescricao(item.descricao);
-    setNovoValor(item.valor.toString());
-    setNovaData(item.data_vencimento);
-    setNovoTipo(item.tipo);
-    setNovaCategoria(item.categoria);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const cancelarEdicao = () => {
-    setIdEmEdicao(null);
-    setNovaDescricao('');
-    setNovoValor('');
-    setNovaData(new Date().toISOString().split('T')[0]);
-  };
-
   const salvarLancamento = async () => {
     if (!novaDescricao || !novoValor) return;
-
     const valorNum = Number(novoValor);
 
     if (idEmEdicao) {
-      // MODO EDIÇÃO
-      const { error } = await supabase.from('lancamentos').update({
-        descricao: novaDescricao,
-        valor: valorNum,
-        tipo: novoTipo,
-        data_vencimento: novaData,
-        categoria: novaCategoria
+      await supabase.from('lancamentos').update({
+        descricao: novaDescricao, valor: valorNum, tipo: novoTipo,
+        data_vencimento: novaData, categoria: novaCategoria
       }).eq('id', idEmEdicao);
-
-      if (!error) {
-        cancelarEdicao();
-        carregarDados();
-      }
+      setIdEmEdicao(null);
     } else {
-      // MODO NOVO LANÇAMENTO (Com Recorrência)
       const registros = [];
       if (novaRecorrencia === 'mensal') {
         for (let i = 0; i < 12; i++) {
@@ -115,113 +89,111 @@ export default function Home() {
           dataBase.setMonth(dataBase.getMonth() + i);
           registros.push({
             descricao: `${novaDescricao} (${i + 1}/12)`,
-            valor: valorNum,
-            tipo: novoTipo,
-            status: 'agendado',
+            valor: valorNum, tipo: novoTipo, status: 'agendado',
             data_vencimento: dataBase.toISOString().split('T')[0],
-            categoria: novaCategoria,
-            recorrencia: 'mensal'
+            categoria: novaCategoria, recorrencia: 'mensal'
           });
         }
       } else {
         registros.push({
-          descricao: novaDescricao,
-          valor: valorNum,
-          tipo: novoTipo,
-          status: 'agendado',
-          data_vencimento: novaData,
-          categoria: novaCategoria,
-          recorrencia: 'unico'
+          descricao: novaDescricao, valor: valorNum, tipo: novoTipo,
+          status: 'agendado', data_vencimento: novaData,
+          categoria: novaCategoria, recorrencia: 'unico'
         });
       }
-
-      const { error } = await supabase.from('lancamentos').insert(registros);
-      if (!error) {
-        setNovaDescricao('');
-        setNovoValor('');
-        carregarDados();
-      }
+      await supabase.from('lancamentos').insert(registros);
     }
+    setNovaDescricao(''); setNovoValor(''); carregarDados();
   };
 
-  const mesAtual = new Date().getUTCMonth();
-  const anoAtual = new Date().getUTCFullYear();
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center p-6">
+        <form onSubmit={async (e) => { e.preventDefault(); const { error } = await supabase.auth.signInWithPassword({ email, password }); if (error) alert(error.message); else window.location.reload(); }} className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem] w-full max-w-md shadow-2xl">
+          <h1 className="text-3xl font-black text-blue-500 mb-6 italic text-center uppercase">GSA FLOW</h1>
+          <input type="email" placeholder="E-mail" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-4 outline-none text-white focus:border-blue-500" value={email} onChange={e => setEmail(e.target.value)} />
+          <input type="password" placeholder="Senha" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-6 outline-none text-white focus:border-blue-500" value={password} onChange={e => setPassword(e.target.value)} />
+          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-xl hover:bg-blue-500 transition-all uppercase text-xs">Acessar</button>
+        </form>
+      </div>
+    );
+  }
+
+  const mesVisualizacao = dataVisualizacao.getMonth();
+  const anoVisualizacao = dataVisualizacao.getFullYear();
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   
-  const lancamentosDoMes = lancamentos.filter(i => {
-    const d = new Date(i.data_vencimento);
-    return d.getUTCMonth() === mesAtual && d.getUTCFullYear() === anoAtual;
+  const lancamentosExibidos = lancamentos.filter(i => {
+    const d = new Date(i.data_vencimento + 'T00:00:00');
+    return d.getMonth() === mesVisualizacao && d.getFullYear() === anoVisualizacao;
   });
 
-  const totalReceitas = lancamentosDoMes.filter(i => i.tipo === 'entrada').reduce((acc, i) => acc + Number(i.valor), 0);
-  const totalDespesas = lancamentosDoMes.filter(i => i.tipo === 'saida').reduce((acc, i) => acc + Number(i.valor), 0);
+  const totalReceitas = lancamentosExibidos.filter(i => i.tipo === 'entrada').reduce((acc, i) => acc + Number(i.valor), 0);
+  const totalDespesas = lancamentosExibidos.filter(i => i.tipo === 'saida').reduce((acc, i) => acc + Number(i.valor), 0);
   const lucroLiquido = totalReceitas - totalDespesas;
   const saldoCaixaGeral = lancamentos.reduce((acc, item) => item.status === 'agendado' ? acc : (item.tipo === 'entrada' ? acc + Number(item.valor) : acc - Number(item.valor)), 0);
   const progressoMeta = Math.min((totalReceitas / metaMensal) * 100, 100);
 
   const gastosPorCategoria = CATEGORIAS_OPCOES.map(cat => ({
     name: cat.label,
-    value: lancamentosDoMes.filter(i => i.tipo === 'saida' && i.categoria === cat.value).reduce((acc, i) => acc + Number(i.valor), 0)
+    value: lancamentosExibidos.filter(i => i.tipo === 'saida' && i.categoria === cat.value).reduce((acc, i) => acc + Number(i.valor), 0)
   })).filter(item => item.value > 0);
 
   const CORES = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 
   return (
-    <div className="min-h-screen bg-[#0b0e14] text-white p-4 sm:p-8 font-sans text-sm selection:bg-blue-500/30">
-      <header className="flex justify-between items-center mb-10 max-w-6xl mx-auto">
-        <div>
+    <div className="min-h-screen bg-[#0b0e14] text-white p-4 sm:p-8 font-sans text-sm pb-24">
+      <header className="flex flex-col sm:flex-row justify-between items-center mb-10 max-w-6xl mx-auto gap-4">
+        <div className="text-center sm:text-left">
             <h1 className="text-2xl sm:text-3xl font-black text-blue-500 tracking-tighter italic uppercase">GSA FLOW</h1>
-            <p className="text-[8px] sm:text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(new Date())}</p>
+            <div className="flex items-center justify-center sm:justify-start gap-4 mt-1 text-zinc-500">
+                <button onClick={() => mudarMes(-1)} className="hover:text-blue-500 p-2">◀</button>
+                <p className="text-[10px] font-black uppercase tracking-widest min-w-[140px] text-center">{new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(dataVisualizacao)}</p>
+                <button onClick={() => mudarMes(1)} className="hover:text-blue-500 p-2">▶</button>
+            </div>
         </div>
-        <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-zinc-600 hover:text-white transition-all text-[9px] font-black uppercase bg-zinc-900/50 px-3 py-1.5 rounded-full border border-zinc-800">Sair</button>
+        <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-zinc-600 hover:text-white text-[9px] font-black uppercase bg-zinc-900/50 px-4 py-2 rounded-full border border-zinc-800">Sair</button>
       </header>
 
       {/* CARDS RESUMO */}
       <div className="max-w-6xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <div className="bg-blue-600/10 border border-blue-500/20 p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem]">
-          <p className="text-blue-400 text-[8px] font-black mb-1 tracking-widest uppercase">Receita</p>
+        <div className="bg-blue-600/10 border border-blue-500/20 p-4 sm:p-6 rounded-[2rem]">
+          <p className="text-blue-400 text-[8px] font-black mb-1 tracking-widest uppercase">Receitas</p>
           <h2 className="text-xl sm:text-3xl font-black tracking-tighter truncate">{totalReceitas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h2>
         </div>
-        <div className="bg-red-600/10 border border-red-500/20 p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem]">
-          <p className="text-red-400 text-[8px] font-black mb-1 tracking-widest uppercase">Despesa</p>
+        <div className="bg-red-600/10 border border-red-500/20 p-4 sm:p-6 rounded-[2rem]">
+          <p className="text-red-400 text-[8px] font-black mb-1 tracking-widest uppercase">Despesas</p>
           <h2 className="text-xl sm:text-3xl font-black tracking-tighter truncate">{totalDespesas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h2>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem]">
-          <p className="text-zinc-500 text-[8px] font-black mb-1 tracking-widest uppercase">Lucro</p>
-          <h2 className={`text-xl sm:text-3xl font-black tracking-tighter truncate ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-            {lucroLiquido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-          </h2>
+        <div className="bg-zinc-900 border border-zinc-800 p-4 sm:p-6 rounded-[2rem]">
+          <p className="text-zinc-500 text-[8px] font-black mb-1 tracking-widest uppercase">Lucro Líquido</p>
+          <h2 className={`text-xl sm:text-3xl font-black tracking-tighter truncate ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>{lucroLiquido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h2>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800/50 p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border-dashed">
-          <p className="text-zinc-600 text-[8px] font-black mb-1 tracking-widest uppercase">Saldo Total</p>
+        <div className="bg-zinc-900 border border-zinc-800/50 p-4 sm:p-6 rounded-[2rem] border-dashed">
+          <p className="text-zinc-600 text-[8px] font-black mb-1 tracking-widest uppercase">Saldo Geral</p>
           <h2 className="text-xl sm:text-3xl font-black tracking-tighter text-zinc-400 truncate">{saldoCaixaGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h2>
         </div>
       </div>
 
-      {/* META E GRÁFICO */}
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
         <div className="lg:col-span-2 bg-zinc-900/20 border border-zinc-800 p-6 sm:p-8 rounded-[2rem] flex flex-col justify-center">
             <div className="flex justify-between items-end mb-4">
-                <p className="text-blue-400 text-[10px] font-black uppercase tracking-widest">Objetivo do Mês</p>
+                <p className="text-blue-400 text-[10px] font-black uppercase tracking-widest">Meta {new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(dataVisualizacao)}</p>
                 {editandoMeta ? (
                     <input autoFocus type="number" className="bg-zinc-950 border border-blue-500 p-1 rounded text-right w-24 outline-none font-mono text-xs text-white" onBlur={() => setEditandoMeta(false)} onChange={(e) => salvarMeta(e.target.value)} value={metaMensal}/>
                 ) : (
-                    <button onClick={() => setEditandoMeta(true)} className="text-[10px] font-black text-zinc-400 flex items-center gap-2">
-                        {metaMensal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} ✏️
-                    </button>
+                    <button onClick={() => setEditandoMeta(true)} className="text-[10px] font-black text-zinc-400 flex items-center gap-2"> {metaMensal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} ✏️ </button>
                 )}
             </div>
             <div className="w-full bg-zinc-950 h-5 rounded-full overflow-hidden border border-zinc-800">
                 <div className="h-full bg-blue-600 transition-all duration-1000 shadow-[0_0_20px_rgba(37,99,235,0.4)]" style={{ width: `${progressoMeta}%` }} />
             </div>
-            <p className="mt-2 text-right text-[9px] font-bold text-zinc-500 italic uppercase tracking-tighter">{progressoMeta.toFixed(1)}% alcançado</p>
         </div>
 
-        <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[280px] flex flex-col items-center">
-          <p className="text-zinc-500 text-[9px] font-black uppercase mb-4">Gastos por Setor</p>
+        <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[250px] flex flex-col items-center">
+          <p className="text-zinc-500 text-[9px] font-black uppercase mb-4">Distribuição</p>
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+            <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
               <Pie data={gastosPorCategoria} innerRadius={50} outerRadius={70} paddingAngle={8} dataKey="value" stroke="none">
                 {gastosPorCategoria.map((entry, index) => <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />)}
               </Pie>
@@ -232,99 +204,59 @@ export default function Home() {
         </div>
       </div>
 
-      {/* FORMULÁRIO DE LANÇAMENTO / EDIÇÃO */}
-      <div className={`max-w-6xl mx-auto p-4 sm:p-6 rounded-[2rem] border transition-all mb-10 
-        ${idEmEdicao ? 'bg-blue-600/10 border-blue-500' : 'bg-zinc-900/40 border-zinc-800/50'}`}>
-        
-        {idEmEdicao && (
-          <div className="flex justify-between items-center mb-4">
-            <p className="text-blue-500 text-[10px] font-black uppercase tracking-widest italic">Modo de Edição Ativado</p>
-            <button onClick={cancelarEdicao} className="text-zinc-500 hover:text-white text-[10px] font-bold">CANCELAR</button>
-          </div>
-        )}
-
+      <div className={`max-w-6xl mx-auto p-4 sm:p-6 rounded-[2rem] border transition-all mb-10 ${idEmEdicao ? 'bg-blue-600/10 border-blue-500' : 'bg-zinc-900/40 border-zinc-800/50'}`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
           <div className="flex bg-zinc-950 rounded-xl p-1 h-12">
-            <button onClick={() => setNovoTipo('entrada')} className={`flex-1 rounded-lg text-[9px] font-black transition-all ${novoTipo === 'entrada' ? 'bg-blue-600' : 'text-zinc-600'}`}>RECEITA</button>
-            <button onClick={() => setNovoTipo('saida')} className={`flex-1 rounded-lg text-[9px] font-black transition-all ${novoTipo === 'saida' ? 'bg-red-600' : 'text-zinc-600'}`}>DESPESA</button>
+            <button onClick={() => setNovoTipo('entrada')} className={`flex-1 rounded-lg text-[9px] font-black ${novoTipo === 'entrada' ? 'bg-blue-600' : 'text-zinc-600'}`}>RECEITA</button>
+            <button onClick={() => setNovoTipo('saida')} className={`flex-1 rounded-lg text-[9px] font-black ${novoTipo === 'saida' ? 'bg-red-600' : 'text-zinc-600'}`}>DESPESA</button>
           </div>
-          <input type="date" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-zinc-300 text-xs" value={novaData} onChange={e => setNovaData(e.target.value)} />
-          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-zinc-300 text-xs" value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)}>
+          <input type="date" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-xs text-white" value={novaData} onChange={e => setNovaData(e.target.value)} />
+          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-xs text-white" value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)}>
             {CATEGORIAS_OPCOES.map(cat => <option key={cat.value} value={cat.value}>{cat.label}</option>)}
           </select>
-          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-zinc-300 text-xs font-bold disabled:opacity-30" value={novaRecorrencia} onChange={e => setNovaRecorrencia(e.target.value)} disabled={!!idEmEdicao}>
+          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-xs font-bold text-white disabled:opacity-30" value={novaRecorrencia} onChange={e => setNovaRecorrencia(e.target.value)} disabled={!!idEmEdicao}>
             <option value="unico">ÚNICO</option>
             <option value="mensal">MENSAL (12x)</option>
           </select>
-          <input type="text" placeholder="Descrição" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-zinc-300 text-xs" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
-          <input type="number" placeholder="Valor" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-zinc-300 font-mono text-xs" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
-          <button onClick={salvarLancamento} className={`text-white font-black h-12 rounded-xl transition-all text-[10px] uppercase tracking-widest ${idEmEdicao ? 'bg-green-600 hover:bg-green-500' : 'bg-blue-600 hover:bg-blue-500'}`}>
-            {idEmEdicao ? 'Atualizar' : 'Lançar'}
-          </button>
+          <input type="text" placeholder="Descrição" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-xs text-white" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
+          <input type="number" placeholder="Valor" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none font-mono text-xs text-white" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
+          <button onClick={salvarLancamento} className={`font-black h-12 rounded-xl transition-all text-[10px] uppercase tracking-widest text-white ${idEmEdicao ? 'bg-green-600' : 'bg-blue-600'}`}>{idEmEdicao ? 'Atualizar' : 'Lançar'}</button>
         </div>
       </div>
 
-      {/* LISTA PRIORIZADA */}
-      <div className="max-w-6xl mx-auto space-y-2 pb-20">
-        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] mb-4 ml-2 italic">Histórico de Fluxo</p>
-        {lancamentos.map((item) => {
+      <div className="max-w-6xl mx-auto space-y-2">
+        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] mb-4 ml-2 italic">Fluxo de Caixa • {new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(dataVisualizacao)}</p>
+        {lancamentosExibidos.length === 0 && <div className="text-center py-10 text-zinc-700 font-bold uppercase text-xs">Nenhum registro encontrado</div>}
+        {lancamentosExibidos.map((item) => {
           const dataVenc = new Date(item.data_vencimento + 'T00:00:00');
           const estaAtrasado = item.status === 'agendado' && dataVenc < hoje;
           const eConfirmado = item.status === 'confirmado';
 
           return (
-            <div key={item.id} className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-2xl border transition-all gap-3 sm:gap-0 
-              ${idEmEdicao === item.id ? 'border-blue-500 ring-1 ring-blue-500' : ''}
-              ${eConfirmado 
-                ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60 grayscale-[0.5]' 
-                : estaAtrasado 
-                  ? 'bg-red-500/5 border-red-500/40 animate-pulse-slow' 
-                  : 'bg-zinc-900/10 border-zinc-800/40 hover:bg-zinc-900/40'}`}>
-              
+            <div key={item.id} className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-2xl border transition-all gap-3 ${eConfirmado ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60' : estaAtrasado ? 'bg-red-500/5 border-red-500/40 animate-pulse-slow' : 'bg-zinc-900/10 border-zinc-800/40'}`}>
               <div className="flex items-center gap-4 w-full sm:w-auto">
-                <span className={`text-[9px] font-mono px-2 py-1 rounded ${eConfirmado ? 'bg-zinc-800 text-zinc-500' : estaAtrasado ? 'bg-red-500 text-white' : 'bg-zinc-800/30 text-zinc-500'}`}>
-                  {new Date(item.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}
-                </span>
+                <span className={`text-[9px] font-mono px-2 py-1 rounded ${eConfirmado ? 'bg-zinc-800 text-zinc-500' : estaAtrasado ? 'bg-red-500 text-white' : 'bg-zinc-800/30 text-zinc-500'}`}>{new Date(item.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</span>
                 <div className="overflow-hidden">
                   <div className="flex items-center gap-2">
                     <p className={`font-bold truncate max-w-[200px] sm:max-w-[300px] ${eConfirmado ? 'text-zinc-500 line-through' : 'text-zinc-300'}`}>{item.descricao}</p>
-                    {item.recorrencia === 'mensal' && <span className="text-[7px] border border-blue-500/30 text-blue-500 px-1 rounded uppercase">Fixo</span>}
-                    {estaAtrasado && <span className="text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">Atrasado</span>}
+                    {estaAtrasado && <span className="text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded font-black uppercase">Atrasado</span>}
                   </div>
-                  <div className="flex gap-2 items-center text-[8px] font-black uppercase tracking-widest text-zinc-600">
-                    <span className={eConfirmado ? 'text-zinc-700' : 'text-blue-500/70'}>{item.categoria}</span>
-                    <span>•</span>
-                    <span>{item.status}</span>
-                  </div>
+                  <div className="flex gap-2 items-center text-[8px] font-black uppercase tracking-widest text-zinc-600"><span>{item.categoria}</span><span>•</span><span>{item.status}</span></div>
                 </div>
               </div>
-
               <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto border-t border-zinc-800/30 sm:border-none pt-2 sm:pt-0">
-                <span className={`font-black text-base sm:text-lg tracking-tighter ${eConfirmado ? 'text-zinc-600' : item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>
-                  {item.tipo === 'entrada' ? '+' : '-'} {Number(item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </span>
-                <div className="flex gap-2 items-center">
-                  {!eConfirmado && (
-                    <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarDados(); }} className="bg-zinc-100 text-black text-[8px] font-black px-3 py-1 rounded-full hover:bg-blue-500 hover:text-white transition-all">OK</button>
-                  )}
-                  <button onClick={() => prepararEdicao(item)} className="text-zinc-600 hover:text-blue-400 p-1 transition-all">✏️</button>
-                  <button onClick={async () => { await supabase.from('lancamentos').delete().eq('id', item.id); carregarDados(); }} className="opacity-100 sm:opacity-0 group-hover:opacity-100 text-zinc-700 hover:text-red-500 transition-all text-xs p-1">🗑️</button>
+                <span className={`font-black text-base sm:text-lg tracking-tighter ${eConfirmado ? 'text-zinc-600' : item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>{item.tipo === 'entrada' ? '+' : '-'} {Number(item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                <div className="flex gap-2">
+                  {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarDados(); }} className="bg-zinc-100 text-black text-[8px] font-black px-3 py-1 rounded-full hover:bg-blue-500 hover:text-white transition-all">OK</button>}
+                  <button onClick={() => { setIdEmEdicao(item.id); setNovaDescricao(item.descricao); setNovoValor(item.valor.toString()); setNovaData(item.data_vencimento); setNovoTipo(item.tipo); setNovaCategoria(item.categoria); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-zinc-600 hover:text-blue-400 p-1">✏️</button>
+                  <button onClick={async () => { await supabase.from('lancamentos').delete().eq('id', item.id); carregarDados(); }} className="text-zinc-700 hover:text-red-500 text-xs p-1">🗑️</button>
                 </div>
               </div>
             </div>
           );
         })}
       </div>
-      
-      <style jsx global>{`
-        @keyframes pulse-slow {
-          0%, 100% { border-color: rgba(239, 68, 68, 0.4); }
-          50% { border-color: rgba(239, 68, 68, 0.8); }
-        }
-        .animate-pulse-slow {
-          animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-      `}</style>
+      <style jsx global>{` @keyframes pulse-slow { 0%, 100% { border-color: rgba(239, 68, 68, 0.4); } 50% { border-color: rgba(239, 68, 68, 0.8); } } .animate-pulse-slow { animation: pulse-slow 3s infinite; } `}</style>
     </div>
   );
 }

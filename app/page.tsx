@@ -21,6 +21,8 @@ export default function Home() {
   const [metaMensal, setMetaMensal] = useState(10000);
   const [editandoMeta, setEditandoMeta] = useState(false);
   
+  // Estados para lançamento (Novo ou Edição)
+  const [idEmEdicao, setIdEmEdicao] = useState<string | null>(null);
   const [novaDescricao, setNovaDescricao] = useState('');
   const [novoValor, setNovoValor] = useState('');
   const [novaData, setNovaData] = useState(new Date().toISOString().split('T')[0]);
@@ -68,60 +70,79 @@ export default function Home() {
     else window.location.reload();
   };
 
-  const adicionarLancamento = async () => {
+  const prepararEdicao = (item: any) => {
+    setIdEmEdicao(item.id);
+    setNovaDescricao(item.descricao);
+    setNovoValor(item.valor.toString());
+    setNovaData(item.data_vencimento);
+    setNovoTipo(item.tipo);
+    setNovaCategoria(item.categoria);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelarEdicao = () => {
+    setIdEmEdicao(null);
+    setNovaDescricao('');
+    setNovoValor('');
+    setNovaData(new Date().toISOString().split('T')[0]);
+  };
+
+  const salvarLancamento = async () => {
     if (!novaDescricao || !novoValor) return;
 
     const valorNum = Number(novoValor);
-    const registros = [];
 
-    if (novaRecorrencia === 'mensal') {
-      // Gera para os próximos 12 meses
-      for (let i = 0; i < 12; i++) {
-        const dataBase = new Date(novaData + 'T00:00:00');
-        dataBase.setMonth(dataBase.getMonth() + i);
-        registros.push({
-          descricao: `${novaDescricao} (${i + 1}/12)`,
-          valor: valorNum,
-          tipo: novoTipo,
-          status: 'agendado',
-          data_vencimento: dataBase.toISOString().split('T')[0],
-          categoria: novaCategoria,
-          recorrencia: 'mensal'
-        });
-      }
-    } else {
-      registros.push({
+    if (idEmEdicao) {
+      // MODO EDIÇÃO
+      const { error } = await supabase.from('lancamentos').update({
         descricao: novaDescricao,
         valor: valorNum,
         tipo: novoTipo,
-        status: 'agendado',
         data_vencimento: novaData,
-        categoria: novaCategoria,
-        recorrencia: 'unico'
-      });
-    }
+        categoria: novaCategoria
+      }).eq('id', idEmEdicao);
 
-    const { error } = await supabase.from('lancamentos').insert(registros);
-    if (!error) {
-      setNovaDescricao('');
-      setNovoValor('');
-      carregarDados();
+      if (!error) {
+        cancelarEdicao();
+        carregarDados();
+      }
+    } else {
+      // MODO NOVO LANÇAMENTO (Com Recorrência)
+      const registros = [];
+      if (novaRecorrencia === 'mensal') {
+        for (let i = 0; i < 12; i++) {
+          const dataBase = new Date(novaData + 'T00:00:00');
+          dataBase.setMonth(dataBase.getMonth() + i);
+          registros.push({
+            descricao: `${novaDescricao} (${i + 1}/12)`,
+            valor: valorNum,
+            tipo: novoTipo,
+            status: 'agendado',
+            data_vencimento: dataBase.toISOString().split('T')[0],
+            categoria: novaCategoria,
+            recorrencia: 'mensal'
+          });
+        }
+      } else {
+        registros.push({
+          descricao: novaDescricao,
+          valor: valorNum,
+          tipo: novoTipo,
+          status: 'agendado',
+          data_vencimento: novaData,
+          categoria: novaCategoria,
+          recorrencia: 'unico'
+        });
+      }
+
+      const { error } = await supabase.from('lancamentos').insert(registros);
+      if (!error) {
+        setNovaDescricao('');
+        setNovoValor('');
+        carregarDados();
+      }
     }
   };
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center p-6 font-sans">
-        <form onSubmit={handleLogin} className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem] w-full max-w-md shadow-2xl">
-          <h1 className="text-3xl font-black text-blue-500 mb-2 italic tracking-tighter text-center uppercase">GSA FLOW</h1>
-          <p className="text-zinc-500 text-[9px] mb-8 uppercase font-black tracking-[0.3em] text-center">Gestão de Fluxo • GSA</p>
-          <input type="email" placeholder="E-mail" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-4 outline-none text-white" value={email} onChange={e => setEmail(e.target.value)} />
-          <input type="password" placeholder="Senha" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-6 outline-none text-white" value={password} onChange={e => setPassword(e.target.value)} />
-          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-xl hover:bg-blue-500 transition-all uppercase text-xs">Entrar</button>
-        </form>
-      </div>
-    );
-  }
 
   const mesAtual = new Date().getUTCMonth();
   const anoAtual = new Date().getUTCFullYear();
@@ -147,7 +168,7 @@ export default function Home() {
   const CORES = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 
   return (
-    <div className="min-h-screen bg-[#0b0e14] text-white p-4 sm:p-8 font-sans text-sm">
+    <div className="min-h-screen bg-[#0b0e14] text-white p-4 sm:p-8 font-sans text-sm selection:bg-blue-500/30">
       <header className="flex justify-between items-center mb-10 max-w-6xl mx-auto">
         <div>
             <h1 className="text-2xl sm:text-3xl font-black text-blue-500 tracking-tighter italic uppercase">GSA FLOW</h1>
@@ -211,8 +232,17 @@ export default function Home() {
         </div>
       </div>
 
-      {/* FORMULÁRIO COM RECORRÊNCIA */}
-      <div className="max-w-6xl mx-auto bg-zinc-900/40 p-4 sm:p-6 rounded-[2rem] border border-zinc-800/50 mb-10">
+      {/* FORMULÁRIO DE LANÇAMENTO / EDIÇÃO */}
+      <div className={`max-w-6xl mx-auto p-4 sm:p-6 rounded-[2rem] border transition-all mb-10 
+        ${idEmEdicao ? 'bg-blue-600/10 border-blue-500' : 'bg-zinc-900/40 border-zinc-800/50'}`}>
+        
+        {idEmEdicao && (
+          <div className="flex justify-between items-center mb-4">
+            <p className="text-blue-500 text-[10px] font-black uppercase tracking-widest italic">Modo de Edição Ativado</p>
+            <button onClick={cancelarEdicao} className="text-zinc-500 hover:text-white text-[10px] font-bold">CANCELAR</button>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
           <div className="flex bg-zinc-950 rounded-xl p-1 h-12">
             <button onClick={() => setNovoTipo('entrada')} className={`flex-1 rounded-lg text-[9px] font-black transition-all ${novoTipo === 'entrada' ? 'bg-blue-600' : 'text-zinc-600'}`}>RECEITA</button>
@@ -222,13 +252,15 @@ export default function Home() {
           <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-zinc-300 text-xs" value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)}>
             {CATEGORIAS_OPCOES.map(cat => <option key={cat.value} value={cat.value}>{cat.label}</option>)}
           </select>
-          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-zinc-300 text-xs font-bold" value={novaRecorrencia} onChange={e => setNovaRecorrencia(e.target.value)}>
+          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-zinc-300 text-xs font-bold disabled:opacity-30" value={novaRecorrencia} onChange={e => setNovaRecorrencia(e.target.value)} disabled={!!idEmEdicao}>
             <option value="unico">ÚNICO</option>
             <option value="mensal">MENSAL (12x)</option>
           </select>
           <input type="text" placeholder="Descrição" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-zinc-300 text-xs" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
           <input type="number" placeholder="Valor" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-zinc-300 font-mono text-xs" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
-          <button onClick={adicionarLancamento} className="bg-blue-600 text-white font-black h-12 rounded-xl hover:bg-blue-500 transition-all text-[10px] uppercase tracking-widest">Lançar</button>
+          <button onClick={salvarLancamento} className={`text-white font-black h-12 rounded-xl transition-all text-[10px] uppercase tracking-widest ${idEmEdicao ? 'bg-green-600 hover:bg-green-500' : 'bg-blue-600 hover:bg-blue-500'}`}>
+            {idEmEdicao ? 'Atualizar' : 'Lançar'}
+          </button>
         </div>
       </div>
 
@@ -242,6 +274,7 @@ export default function Home() {
 
           return (
             <div key={item.id} className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-2xl border transition-all gap-3 sm:gap-0 
+              ${idEmEdicao === item.id ? 'border-blue-500 ring-1 ring-blue-500' : ''}
               ${eConfirmado 
                 ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60 grayscale-[0.5]' 
                 : estaAtrasado 
@@ -270,10 +303,11 @@ export default function Home() {
                 <span className={`font-black text-base sm:text-lg tracking-tighter ${eConfirmado ? 'text-zinc-600' : item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>
                   {item.tipo === 'entrada' ? '+' : '-'} {Number(item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </span>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   {!eConfirmado && (
                     <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarDados(); }} className="bg-zinc-100 text-black text-[8px] font-black px-3 py-1 rounded-full hover:bg-blue-500 hover:text-white transition-all">OK</button>
                   )}
+                  <button onClick={() => prepararEdicao(item)} className="text-zinc-600 hover:text-blue-400 p-1 transition-all">✏️</button>
                   <button onClick={async () => { await supabase.from('lancamentos').delete().eq('id', item.id); carregarDados(); }} className="opacity-100 sm:opacity-0 group-hover:opacity-100 text-zinc-700 hover:text-red-500 transition-all text-xs p-1">🗑️</button>
                 </div>
               </div>

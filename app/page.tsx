@@ -125,7 +125,7 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center p-6 text-white font-sans">
         <form onSubmit={async (e) => { e.preventDefault(); const { error } = await supabase.auth.signInWithPassword({ email, password }); if (error) alert(error.message); else window.location.reload(); }} className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem] w-full max-w-md shadow-2xl">
-          <h1 className="text-3xl font-black text-blue-500 mb-6 italic text-center uppercase">GSA FLOW</h1>
+          <h1 className="text-3xl font-black text-blue-500 mb-6 italic text-center uppercase leading-none">GSA FLOW</h1>
           <input type="email" placeholder="E-mail" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-4 outline-none text-white focus:border-blue-500" value={email} onChange={e => setEmail(e.target.value)} />
           <input type="password" placeholder="Senha" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-6 outline-none text-white focus:border-blue-500" value={password} onChange={e => setPassword(e.target.value)} />
           <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-xl hover:bg-blue-500 transition-all uppercase text-xs tracking-widest">Acessar</button>
@@ -138,6 +138,12 @@ export default function Home() {
   const anoVisualizacao = dataVisualizacao.getFullYear();
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   
+  // Alertas e Notificações
+  const itensAtrasadosGeral = lancamentos.filter(i => {
+    const d = new Date(i.data_vencimento + 'T00:00:00');
+    return i.status === 'agendado' && d < hoje;
+  });
+
   const lancamentosExibidos = lancamentos.filter(i => {
     const d = new Date(i.data_vencimento + 'T00:00:00');
     return d.getMonth() === mesVisualizacao && d.getFullYear() === anoVisualizacao;
@@ -158,6 +164,25 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#0b0e14] text-white p-4 sm:p-8 font-sans text-sm pb-24">
+      
+      {/* PAINEL DE ALERTAS CRÍTICOS */}
+      {itensAtrasadosGeral.length > 0 && (
+        <div className="max-w-6xl mx-auto mb-6 bg-red-600/10 border border-red-500/30 p-4 rounded-2xl flex items-center justify-between animate-pulse-slow">
+           <div className="flex items-center gap-3">
+              <span className="text-xl">⚠️</span>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-tighter text-red-500">Atenção Danilo</p>
+                <p className="text-xs font-bold text-zinc-300">Existem {itensAtrasadosGeral.length} pagamentos/recebimentos atrasados no sistema.</p>
+              </div>
+           </div>
+           <button onClick={() => {
+             // Lógica para filtrar apenas os atrasados
+             const dataMaisAntiga = new Date(itensAtrasadosGeral[0].data_vencimento + 'T00:00:00');
+             setDataVisualizacao(dataMaisAntiga);
+           }} className="text-[9px] font-black uppercase bg-red-600 text-white px-3 py-1.5 rounded-lg">Ver Atrasados</button>
+        </div>
+      )}
+
       <header className="flex flex-col sm:flex-row justify-between items-center mb-10 max-w-6xl mx-auto gap-4">
         <div className="text-center sm:text-left">
             <h1 className="text-2xl sm:text-3xl font-black text-blue-500 tracking-tighter italic uppercase leading-none">GSA FLOW</h1>
@@ -205,7 +230,6 @@ export default function Home() {
             </div>
         </div>
 
-        {/* BOX DO GRÁFICO CORRIGIDO */}
         <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[280px] flex flex-col items-center overflow-hidden">
           <p className="text-zinc-500 text-[9px] font-black uppercase mb-2">Distribuição Mensal</p>
           <ResponsiveContainer width="100%" height="100%">
@@ -213,10 +237,7 @@ export default function Home() {
               <Pie data={gastosPorCategoria} innerRadius={45} outerRadius={65} paddingAngle={8} dataKey="value" stroke="none">
                 {gastosPorCategoria.map((entry, index) => <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />)}
               </Pie>
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', fontSize: '10px' }}
-                itemStyle={{ color: '#fff' }}
-              />
+              <Tooltip contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', fontSize: '10px' }} itemStyle={{ color: '#fff' }} />
               <Legend verticalAlign="bottom" height={36} wrapperStyle={{ color: '#a1a1aa', fontSize: '10px', fontWeight: 'bold', paddingTop: '10px' }} />
             </PieChart>
           </ResponsiveContainer>

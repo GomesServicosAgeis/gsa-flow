@@ -7,12 +7,11 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { Parser } from 'json2csv';
 
 const CATEGORIAS_OPCOES = [
-  { label: '🏷️ Geral', value: 'Geral' },
-  { label: '🚀 Marketing', value: 'Marketing' },
-  { label: '💻 Software/SaaS', value: 'Software' },
-  { label: '🏠 Infraestrutura', value: 'Infra' },
-  { label: '👤 Pessoal/Pró-labore', value: 'Pessoal' },
-  { label: '🛡️ Impostos', value: 'Impostos' },
+  { label: '💰 Recebimentos (Freelancer)', value: 'Freelancer' },
+  { label: '👤 Pessoal (Lazer/Saúde)', value: 'Pessoal' },
+  { label: '🚗 Transporte (Combustível)', value: 'Transporte' },
+  { label: '🏠 Gastos Fixos (Contas)', value: 'Fixos' },
+  { label: '📄 Contas a Pagar', value: 'Contas' },
 ];
 
 export default function Home() {
@@ -29,7 +28,7 @@ export default function Home() {
   const [novoValor, setNovoValor] = useState('');
   const [novaData, setNovaData] = useState(new Date().toISOString().split('T')[0]);
   const [novoTipo, setNovoTipo] = useState('entrada');
-  const [novaCategoria, setNovaCategoria] = useState('Geral');
+  const [novaCategoria, setNovaCategoria] = useState('Freelancer');
   const [novaRecorrencia, setNovaRecorrencia] = useState('unico');
 
   useEffect(() => {
@@ -81,20 +80,14 @@ export default function Home() {
       link.href = url;
       link.setAttribute('download', `GSA_FLOW_RELATORIO_${new Intl.DateTimeFormat('pt-BR', { month: '2-digit', year: 'numeric' }).format(dataVisualizacao)}.csv`);
       link.click();
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const salvarLancamento = async () => {
     if (!novaDescricao || !novoValor) return;
     const valorNum = Number(novoValor);
-
     if (idEmEdicao) {
-      await supabase.from('lancamentos').update({
-        descricao: novaDescricao, valor: valorNum, tipo: novoTipo,
-        data_vencimento: novaData, categoria: novaCategoria
-      }).eq('id', idEmEdicao);
+      await supabase.from('lancamentos').update({ descricao: novaDescricao, valor: valorNum, tipo: novoTipo, data_vencimento: novaData, categoria: novaCategoria }).eq('id', idEmEdicao);
       setIdEmEdicao(null);
     } else {
       const registros = [];
@@ -102,19 +95,10 @@ export default function Home() {
         for (let i = 0; i < 12; i++) {
           const dataBase = new Date(novaData + 'T00:00:00');
           dataBase.setMonth(dataBase.getMonth() + i);
-          registros.push({
-            descricao: `${novaDescricao} (${i + 1}/12)`,
-            valor: valorNum, tipo: novoTipo, status: 'agendado',
-            data_vencimento: dataBase.toISOString().split('T')[0],
-            categoria: novaCategoria, recorrencia: 'mensal'
-          });
+          registros.push({ descricao: `${novaDescricao} (${i + 1}/12)`, valor: valorNum, tipo: novoTipo, status: 'agendado', data_vencimento: dataBase.toISOString().split('T')[0], categoria: novaCategoria, recorrencia: 'mensal' });
         }
       } else {
-        registros.push({
-          descricao: novaDescricao, valor: valorNum, tipo: novoTipo,
-          status: 'agendado', data_vencimento: novaData,
-          categoria: novaCategoria, recorrencia: 'unico'
-        });
+        registros.push({ descricao: novaDescricao, valor: valorNum, tipo: novoTipo, status: 'agendado', data_vencimento: novaData, categoria: novaCategoria, recorrencia: 'unico' });
       }
       await supabase.from('lancamentos').insert(registros);
     }
@@ -124,75 +108,69 @@ export default function Home() {
   if (!user) {
     return (
       <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center p-6 text-white font-sans">
-        <form onSubmit={async (e) => { e.preventDefault(); const { error } = await supabase.auth.signInWithPassword({ email, password }); if (error) alert(error.message); else window.location.reload(); }} className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem] w-full max-w-md shadow-2xl">
-          <h1 className="text-3xl font-black text-blue-500 mb-6 italic text-center uppercase leading-none">GSA FLOW</h1>
+        <form onSubmit={async (e) => { e.preventDefault(); const { error } = await supabase.auth.signInWithPassword({ email, password }); if (error) alert(error.message); else window.location.reload(); }} className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem] w-full max-w-md">
+          <h1 className="text-3xl font-black text-blue-500 mb-6 italic text-center uppercase">GSA FLOW</h1>
           <input type="email" placeholder="E-mail" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-4 outline-none text-white focus:border-blue-500" value={email} onChange={e => setEmail(e.target.value)} />
           <input type="password" placeholder="Senha" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-6 outline-none text-white focus:border-blue-500" value={password} onChange={e => setPassword(e.target.value)} />
-          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-xl hover:bg-blue-500 transition-all uppercase text-xs tracking-widest">Acessar</button>
+          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-xl hover:bg-blue-500 transition-all uppercase text-xs">Acessar</button>
         </form>
       </div>
     );
   }
 
-  const mesVisualizacao = dataVisualizacao.getMonth();
-  const anoVisualizacao = dataVisualizacao.getFullYear();
-  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const mesVis = dataVisualizacao.getMonth();
+  const anoVis = dataVisualizacao.getFullYear();
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
   
-  // LÓGICA GLOBAL DE ATRASADOS: Verifica todos os lançamentos do banco, não apenas o mês visível
-  const itensAtrasadosGeral = lancamentos.filter(i => {
-    const dataVenc = new Date(i.data_vencimento + 'T00:00:00');
-    return i.status === 'agendado' && dataVenc < hoje;
-  });
-
+  const itensAtrasadosGeral = lancamentos.filter(i => i.status === 'agendado' && new Date(i.data_vencimento + 'T00:00:00') < hoje);
   const lancamentosExibidos = lancamentos.filter(i => {
     const d = new Date(i.data_vencimento + 'T00:00:00');
-    return d.getMonth() === mesVisualizacao && d.getFullYear() === anoVisualizacao;
+    return d.getMonth() === mesVis && d.getFullYear() === anoVis;
   });
+
+  // Lógica Comparativa (Mês Anterior)
+  const dataAnterior = new Date(dataVisualizacao); dataAnterior.setMonth(dataAnterior.getMonth() - 1);
+  const despesasMesAnterior = lancamentos.filter(i => {
+    const d = new Date(i.data_vencimento + 'T00:00:00');
+    return i.tipo === 'saida' && d.getMonth() === dataAnterior.getMonth() && d.getFullYear() === dataAnterior.getFullYear();
+  }).reduce((acc, i) => acc + Number(i.valor), 0);
 
   const totalReceitas = lancamentosExibidos.filter(i => i.tipo === 'entrada').reduce((acc, i) => acc + Number(i.valor), 0);
   const totalDespesas = lancamentosExibidos.filter(i => i.tipo === 'saida').reduce((acc, i) => acc + Number(i.valor), 0);
   const lucroLiquido = totalReceitas - totalDespesas;
   const saldoCaixaGeral = lancamentos.reduce((acc, item) => item.status === 'agendado' ? acc : (item.tipo === 'entrada' ? acc + Number(item.valor) : acc - Number(item.valor)), 0);
-  const progressoMeta = Math.min((totalReceitas / metaMensal) * 100, 100);
+  const diffDespesas = despesasMesAnterior > 0 ? ((totalDespesas - despesasMesAnterior) / despesasMesAnterior) * 100 : 0;
 
   const gastosPorCategoria = CATEGORIAS_OPCOES.map(cat => ({
-    name: cat.label,
+    name: cat.label.split('(')[0].trim(),
     value: lancamentosExibidos.filter(i => i.tipo === 'saida' && i.categoria === cat.value).reduce((acc, i) => acc + Number(i.valor), 0)
   })).filter(item => item.value > 0);
 
-  const CORES = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+  const CORES = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'];
 
   return (
     <div className="min-h-screen bg-[#0b0e14] text-white p-4 sm:p-8 font-sans text-sm pb-24">
       
-      {/* PAINEL DE ALERTAS GLOBAL */}
+      {/* ALERTA DE ATRASO */}
       {itensAtrasadosGeral.length > 0 && (
-        <div className="max-w-6xl mx-auto mb-6 bg-red-600/10 border border-red-500/30 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 transition-all">
-           <div className="flex items-center gap-3 text-center sm:text-left">
+        <div className="max-w-6xl mx-auto mb-6 bg-red-600/10 border border-red-500/30 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+           <div className="flex items-center gap-3">
               <span className="text-xl animate-bounce">⚠️</span>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-tighter text-red-500">Atenção Danilo</p>
-                <p className="text-xs font-bold text-zinc-300">Há {itensAtrasadosGeral.length} pendências atrasadas no histórico geral.</p>
+                <p className="text-[10px] font-black uppercase text-red-500">Atrasos Detectados</p>
+                <p className="text-xs font-bold text-zinc-300">Há {itensAtrasadosGeral.length} pendências atrasadas.</p>
               </div>
            </div>
-           <button 
-            onClick={() => {
-              // Encontra o item atrasado mais antigo de todo o histórico
-              const ordenados = [...itensAtrasadosGeral].sort((a,b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime());
-              const maisAntigo = ordenados[0];
-              const dataIr = new Date(maisAntigo.data_vencimento + 'T00:00:00');
-              setDataVisualizacao(dataIr);
-            }} 
-            className="w-full sm:w-auto text-[9px] font-black uppercase bg-red-600 hover:bg-red-500 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/20"
-           >
-            Ir para o mês do atraso
-           </button>
+           <button onClick={() => {
+             const ordenados = [...itensAtrasadosGeral].sort((a,b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime());
+             setDataVisualizacao(new Date(ordenados[0].data_vencimento + 'T00:00:00'));
+           }} className="w-full sm:w-auto text-[9px] font-black uppercase bg-red-600 text-white px-5 py-2.5 rounded-xl">Corrigir Agora</button>
         </div>
       )}
 
       <header className="flex flex-col sm:flex-row justify-between items-center mb-10 max-w-6xl mx-auto gap-4">
         <div className="text-center sm:text-left">
-            <h1 className="text-2xl sm:text-3xl font-black text-blue-500 tracking-tighter italic uppercase leading-none">GSA FLOW</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-blue-500 tracking-tighter italic uppercase">GSA FLOW</h1>
             <div className="flex items-center justify-center sm:justify-start gap-4 mt-2 text-zinc-500">
                 <button onClick={() => mudarMes(-1)} className="hover:text-blue-500 p-1">◀</button>
                 <p className="text-[10px] font-black uppercase tracking-widest min-w-[140px] text-center">{new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(dataVisualizacao)}</p>
@@ -205,19 +183,22 @@ export default function Home() {
       {/* CARDS RESUMO */}
       <div className="max-w-6xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <div className="bg-blue-600/10 border border-blue-500/20 p-4 sm:p-6 rounded-[2rem]">
-          <p className="text-blue-400 text-[8px] font-black mb-1 tracking-widest uppercase">Receitas</p>
+          <p className="text-blue-400 text-[8px] font-black mb-1 tracking-widest uppercase">Faturamento</p>
           <h2 className="text-xl sm:text-3xl font-black tracking-tighter truncate">{totalReceitas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h2>
         </div>
-        <div className="bg-red-600/10 border border-red-500/20 p-4 sm:p-6 rounded-[2rem]">
-          <p className="text-red-400 text-[8px] font-black mb-1 tracking-widest uppercase">Despesas</p>
+        <div className="bg-zinc-900 border border-zinc-800 p-4 sm:p-6 rounded-[2rem]">
+          <p className="text-zinc-500 text-[8px] font-black mb-1 tracking-widest uppercase">Despesas Totais</p>
           <h2 className="text-xl sm:text-3xl font-black tracking-tighter truncate">{totalDespesas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h2>
+          <p className={`text-[9px] font-bold mt-1 ${diffDespesas <= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            {diffDespesas <= 0 ? '▼' : '▲'} {Math.abs(diffDespesas).toFixed(1)}% vs mês ant.
+          </p>
         </div>
         <div className="bg-zinc-900 border border-zinc-800 p-4 sm:p-6 rounded-[2rem]">
-          <p className="text-zinc-500 text-[8px] font-black mb-1 tracking-widest uppercase">Lucro Líquido</p>
+          <p className="text-zinc-500 text-[8px] font-black mb-1 tracking-widest uppercase">Saldo do Mês</p>
           <h2 className={`text-xl sm:text-3xl font-black tracking-tighter truncate ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>{lucroLiquido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h2>
         </div>
         <div className="bg-zinc-900 border border-zinc-800/50 p-4 sm:p-6 rounded-[2rem] border-dashed">
-          <p className="text-zinc-600 text-[8px] font-black mb-1 tracking-widest uppercase">Saldo Geral</p>
+          <p className="text-zinc-600 text-[8px] font-black mb-1 tracking-widest uppercase">Caixa Acumulado</p>
           <h2 className="text-xl sm:text-3xl font-black tracking-tighter text-zinc-400 truncate">{saldoCaixaGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h2>
         </div>
       </div>
@@ -225,7 +206,7 @@ export default function Home() {
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
         <div className="lg:col-span-2 bg-zinc-900/20 border border-zinc-800 p-6 sm:p-8 rounded-[2rem] flex flex-col justify-center">
             <div className="flex justify-between items-end mb-4">
-                <p className="text-blue-400 text-[10px] font-black uppercase tracking-widest">Meta {new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(dataVisualizacao)}</p>
+                <p className="text-blue-400 text-[10px] font-black uppercase tracking-widest">Meta de Receita</p>
                 {editandoMeta ? (
                     <input autoFocus type="number" className="bg-zinc-950 border border-blue-500 p-1 rounded text-right w-24 outline-none font-mono text-xs text-white" onBlur={() => setEditandoMeta(false)} onChange={(e) => salvarMeta(e.target.value)} value={metaMensal}/>
                 ) : (
@@ -233,12 +214,12 @@ export default function Home() {
                 )}
             </div>
             <div className="w-full bg-zinc-950 h-5 rounded-full overflow-hidden border border-zinc-800">
-                <div className="h-full bg-blue-600 transition-all duration-1000 shadow-[0_0_20px_rgba(37,99,235,0.4)]" style={{ width: `${progressoMeta}%` }} />
+                <div className="h-full bg-blue-600 transition-all duration-1000" style={{ width: `${Math.min((totalReceitas / metaMensal) * 100, 100)}%` }} />
             </div>
         </div>
 
         <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[280px] flex flex-col items-center overflow-hidden">
-          <p className="text-zinc-500 text-[9px] font-black uppercase mb-2">Distribuição Mensal</p>
+          <p className="text-zinc-500 text-[9px] font-black uppercase mb-2">Gastos por Setor</p>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart margin={{ top: 10, bottom: 30, left: 10, right: 10 }}>
               <Pie data={gastosPorCategoria} innerRadius={45} outerRadius={65} paddingAngle={8} dataKey="value" stroke="none">
@@ -251,6 +232,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* FORMULÁRIO COM NOVAS CATEGORIAS */}
       <div className={`max-w-6xl mx-auto p-4 sm:p-6 rounded-[2rem] border transition-all mb-10 ${idEmEdicao ? 'bg-blue-600/10 border-blue-500' : 'bg-zinc-900/40 border-zinc-800/50'}`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
           <div className="flex bg-zinc-950 rounded-xl p-1 h-12">
@@ -263,27 +245,23 @@ export default function Home() {
           </select>
           <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-xs font-bold text-white disabled:opacity-30" value={novaRecorrencia} onChange={e => setNovaRecorrencia(e.target.value)} disabled={!!idEmEdicao}>
             <option value="unico">ÚNICO</option>
-            <option value="mensal">MENSAL (12x)</option>
+            <option value="mensal">MENSAL</option>
           </select>
           <input type="text" placeholder="Descrição" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-xs text-white" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
           <input type="number" placeholder="Valor" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none font-mono text-xs text-white" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
-          <button onClick={salvarLancamento} className={`font-black h-12 rounded-xl transition-all text-[10px] uppercase tracking-widest text-white ${idEmEdicao ? 'bg-green-600' : 'bg-blue-600'}`}>{idEmEdicao ? 'Atualizar' : 'Lançar'}</button>
+          <button onClick={salvarLancamento} className={`font-black h-12 rounded-xl transition-all text-[10px] uppercase text-white ${idEmEdicao ? 'bg-green-600' : 'bg-blue-600'}`}>{idEmEdicao ? 'Atualizar' : 'Lançar'}</button>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto space-y-2">
         <div className="flex justify-between items-center mb-4 px-2">
-            <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] italic">Fluxo de Caixa • Detalhado</p>
+            <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] italic">Timeline de Fluxo</p>
             <button onClick={exportarCSV} className="text-[9px] font-black uppercase text-blue-500 bg-blue-500/10 border border-blue-500/20 px-3 py-1.5 rounded-lg hover:bg-blue-500 hover:text-white transition-all">Exportar CSV</button>
         </div>
         
-        {lancamentosExibidos.length === 0 && <div className="text-center py-10 text-zinc-700 font-bold uppercase text-xs">Sem registos para este período</div>}
-        
         {lancamentosExibidos.map((item) => {
-          const dataVenc = new Date(item.data_vencimento + 'T00:00:00');
-          const estaAtrasado = item.status === 'agendado' && dataVenc < hoje;
+          const estaAtrasado = item.status === 'agendado' && new Date(item.data_vencimento + 'T00:00:00') < hoje;
           const eConfirmado = item.status === 'confirmado';
-
           return (
             <div key={item.id} className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-2xl border transition-all gap-3 ${eConfirmado ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60' : estaAtrasado ? 'bg-red-500/5 border-red-500/40 animate-pulse-slow' : 'bg-zinc-900/10 border-zinc-800/40 hover:bg-zinc-900/20'}`}>
               <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -291,7 +269,7 @@ export default function Home() {
                 <div className="overflow-hidden">
                   <div className="flex items-center gap-2">
                     <p className={`font-bold truncate max-w-[200px] sm:max-w-[300px] ${eConfirmado ? 'text-zinc-500 line-through' : 'text-zinc-300'}`}>{item.descricao}</p>
-                    {estaAtrasado && <span className="text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded font-black uppercase">Atrasado</span>}
+                    {estaAtrasado && <span className="text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded font-black uppercase tracking-widest">Atrasado</span>}
                   </div>
                   <div className="flex gap-2 items-center text-[8px] font-black uppercase tracking-widest text-zinc-600"><span>{item.categoria}</span><span>•</span><span>{item.status}</span></div>
                 </div>
@@ -299,7 +277,7 @@ export default function Home() {
               <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto border-t border-zinc-800/30 sm:border-none pt-2 sm:pt-0">
                 <span className={`font-black text-base sm:text-lg tracking-tighter ${eConfirmado ? 'text-zinc-600' : item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>{item.tipo === 'entrada' ? '+' : '-'} {Number(item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                 <div className="flex gap-2">
-                  {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarDados(); }} className="bg-zinc-100 text-black text-[8px] font-black px-3 py-1 rounded-full hover:bg-blue-500 hover:text-white transition-all">OK</button>}
+                  {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarDados(); }} className="bg-zinc-100 text-black text-[8px] font-black px-3 py-1 rounded-full hover:bg-blue-500 hover:text-white transition-all shadow-md">OK</button>}
                   <button onClick={() => { setIdEmEdicao(item.id); setNovaDescricao(item.descricao); setNovoValor(item.valor.toString()); setNovaData(item.data_vencimento); setNovoTipo(item.tipo); setNovaCategoria(item.categoria); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-zinc-600 hover:text-blue-400 p-1">✏️</button>
                   <button onClick={async () => { await supabase.from('lancamentos').delete().eq('id', item.id); carregarDados(); }} className="text-zinc-700 hover:text-red-500 text-xs p-1">🗑️</button>
                 </div>

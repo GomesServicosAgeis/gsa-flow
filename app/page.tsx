@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { Parser } from 'json2csv'; // Importação da biblioteca de exportação
 
 const CATEGORIAS_OPCOES = [
   { label: '🏷️ Geral', value: 'Geral' },
@@ -21,7 +22,6 @@ export default function Home() {
   const [metaMensal, setMetaMensal] = useState(10000);
   const [editandoMeta, setEditandoMeta] = useState(false);
   
-  // Controle de Mês e Ano selecionado
   const [dataVisualizacao, setDataVisualizacao] = useState(new Date());
 
   const [idEmEdicao, setIdEmEdicao] = useState<string | null>(null);
@@ -59,8 +59,6 @@ export default function Home() {
     const { data } = await supabase.from('lancamentos').select('*');
     if (data) {
       const ordenados = data.sort((a, b) => {
-        const hojeSort = new Date();
-        hojeSort.setHours(0, 0, 0, 0);
         const dataA = new Date(a.data_vencimento);
         const dataB = new Date(b.data_vencimento);
         if (a.status === 'confirmado' && b.status !== 'confirmado') return 1;
@@ -70,6 +68,25 @@ export default function Home() {
       setLancamentos(ordenados);
     }
   }
+
+  // FUNÇÃO DE EXPORTAÇÃO
+  const exportarCSV = () => {
+    try {
+      const fields = ['data_vencimento', 'descricao', 'valor', 'tipo', 'categoria', 'status'];
+      const opts = { fields, delimiter: ';', quote: '' };
+      const parser = new Parser(opts);
+      const csv = parser.parse(lancamentosExibidos);
+      
+      const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `GSA_FLOW_RELATORIO_${new Intl.DateTimeFormat('pt-BR', { month: '2-digit', year: 'numeric' }).format(dataVisualizacao)}.csv`);
+      link.click();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const salvarLancamento = async () => {
     if (!novaDescricao || !novoValor) return;
@@ -108,12 +125,12 @@ export default function Home() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center p-6">
+      <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center p-6 text-white font-sans">
         <form onSubmit={async (e) => { e.preventDefault(); const { error } = await supabase.auth.signInWithPassword({ email, password }); if (error) alert(error.message); else window.location.reload(); }} className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem] w-full max-w-md shadow-2xl">
           <h1 className="text-3xl font-black text-blue-500 mb-6 italic text-center uppercase">GSA FLOW</h1>
           <input type="email" placeholder="E-mail" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-4 outline-none text-white focus:border-blue-500" value={email} onChange={e => setEmail(e.target.value)} />
           <input type="password" placeholder="Senha" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-6 outline-none text-white focus:border-blue-500" value={password} onChange={e => setPassword(e.target.value)} />
-          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-xl hover:bg-blue-500 transition-all uppercase text-xs">Acessar</button>
+          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-xl hover:bg-blue-500 transition-all uppercase text-xs tracking-widest">Acessar</button>
         </form>
       </div>
     );
@@ -145,11 +162,11 @@ export default function Home() {
     <div className="min-h-screen bg-[#0b0e14] text-white p-4 sm:p-8 font-sans text-sm pb-24">
       <header className="flex flex-col sm:flex-row justify-between items-center mb-10 max-w-6xl mx-auto gap-4">
         <div className="text-center sm:text-left">
-            <h1 className="text-2xl sm:text-3xl font-black text-blue-500 tracking-tighter italic uppercase">GSA FLOW</h1>
-            <div className="flex items-center justify-center sm:justify-start gap-4 mt-1 text-zinc-500">
-                <button onClick={() => mudarMes(-1)} className="hover:text-blue-500 p-2">◀</button>
+            <h1 className="text-2xl sm:text-3xl font-black text-blue-500 tracking-tighter italic uppercase leading-none">GSA FLOW</h1>
+            <div className="flex items-center justify-center sm:justify-start gap-4 mt-2 text-zinc-500">
+                <button onClick={() => mudarMes(-1)} className="hover:text-blue-500 p-1">◀</button>
                 <p className="text-[10px] font-black uppercase tracking-widest min-w-[140px] text-center">{new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(dataVisualizacao)}</p>
-                <button onClick={() => mudarMes(1)} className="hover:text-blue-500 p-2">▶</button>
+                <button onClick={() => mudarMes(1)} className="hover:text-blue-500 p-1">▶</button>
             </div>
         </div>
         <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-zinc-600 hover:text-white text-[9px] font-black uppercase bg-zinc-900/50 px-4 py-2 rounded-full border border-zinc-800">Sair</button>
@@ -182,7 +199,7 @@ export default function Home() {
                 {editandoMeta ? (
                     <input autoFocus type="number" className="bg-zinc-950 border border-blue-500 p-1 rounded text-right w-24 outline-none font-mono text-xs text-white" onBlur={() => setEditandoMeta(false)} onChange={(e) => salvarMeta(e.target.value)} value={metaMensal}/>
                 ) : (
-                    <button onClick={() => setEditandoMeta(true)} className="text-[10px] font-black text-zinc-400 flex items-center gap-2"> {metaMensal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} ✏️ </button>
+                    <button onClick={() => setEditandoMeta(true)} className="text-[10px] font-black text-zinc-400 flex items-center gap-2 hover:text-white transition-colors"> {metaMensal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} ✏️ </button>
                 )}
             </div>
             <div className="w-full bg-zinc-950 h-5 rounded-full overflow-hidden border border-zinc-800">
@@ -191,9 +208,9 @@ export default function Home() {
         </div>
 
         <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[250px] flex flex-col items-center">
-          <p className="text-zinc-500 text-[9px] font-black uppercase mb-4">Distribuição</p>
+          <p className="text-zinc-500 text-[9px] font-black uppercase mb-4">Distribuição Mensal</p>
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+            <PieChart>
               <Pie data={gastosPorCategoria} innerRadius={50} outerRadius={70} paddingAngle={8} dataKey="value" stroke="none">
                 {gastosPorCategoria.map((entry, index) => <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />)}
               </Pie>
@@ -225,15 +242,20 @@ export default function Home() {
       </div>
 
       <div className="max-w-6xl mx-auto space-y-2">
-        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] mb-4 ml-2 italic">Fluxo de Caixa • {new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(dataVisualizacao)}</p>
-        {lancamentosExibidos.length === 0 && <div className="text-center py-10 text-zinc-700 font-bold uppercase text-xs">Nenhum registro encontrado</div>}
+        <div className="flex justify-between items-center mb-4 px-2">
+            <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] italic">Fluxo de Caixa • Detalhado</p>
+            <button onClick={exportarCSV} className="text-[9px] font-black uppercase text-blue-500 bg-blue-500/10 border border-blue-500/20 px-3 py-1.5 rounded-lg hover:bg-blue-500 hover:text-white transition-all">Exportar CSV</button>
+        </div>
+        
+        {lancamentosExibidos.length === 0 && <div className="text-center py-10 text-zinc-700 font-bold uppercase text-xs">Sem registos para este período</div>}
+        
         {lancamentosExibidos.map((item) => {
           const dataVenc = new Date(item.data_vencimento + 'T00:00:00');
           const estaAtrasado = item.status === 'agendado' && dataVenc < hoje;
           const eConfirmado = item.status === 'confirmado';
 
           return (
-            <div key={item.id} className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-2xl border transition-all gap-3 ${eConfirmado ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60' : estaAtrasado ? 'bg-red-500/5 border-red-500/40 animate-pulse-slow' : 'bg-zinc-900/10 border-zinc-800/40'}`}>
+            <div key={item.id} className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-2xl border transition-all gap-3 ${eConfirmado ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60' : estaAtrasado ? 'bg-red-500/5 border-red-500/40 animate-pulse-slow' : 'bg-zinc-900/10 border-zinc-800/40 hover:bg-zinc-900/20'}`}>
               <div className="flex items-center gap-4 w-full sm:w-auto">
                 <span className={`text-[9px] font-mono px-2 py-1 rounded ${eConfirmado ? 'bg-zinc-800 text-zinc-500' : estaAtrasado ? 'bg-red-500 text-white' : 'bg-zinc-800/30 text-zinc-500'}`}>{new Date(item.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</span>
                 <div className="overflow-hidden">

@@ -14,6 +14,9 @@ const CATEGORIAS_OPCOES = [
 ];
 
 export default function Home() {
+  const [user, setUser] = useState<any>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [lancamentos, setLancamentos] = useState<any[]>([]);
   const [novaDescricao, setNovaDescricao] = useState('');
   const [novoValor, setNovoValor] = useState('');
@@ -21,31 +24,47 @@ export default function Home() {
   const [novoTipo, setNovoTipo] = useState('entrada');
   const [novaCategoria, setNovaCategoria] = useState('Geral');
 
+  useEffect(() => {
+    // Verificar se o usuário está logado
+    const checkUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setUser(data.user);
+      if (data.user) carregarDados();
+    };
+    checkUser();
+  }, []);
+
   async function carregarDados() {
     const { data } = await supabase.from('lancamentos').select('*').order('data_vencimento', { ascending: false });
     if (data) setLancamentos(data);
   }
 
-  useEffect(() => { carregarDados(); }, []);
-
-  const adicionarLancamento = async () => {
-    if (!novaDescricao || !novoValor) return;
-    const { error } = await supabase.from('lancamentos').insert([{ 
-      descricao: novaDescricao, valor: Number(novoValor), tipo: novoTipo, 
-      status: 'agendado', data_vencimento: novaData, categoria: novaCategoria 
-    }]);
-    if (!error) { setNovaDescricao(''); setNovoValor(''); carregarDados(); }
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) alert("Erro no login: " + error.message);
+    else window.location.reload();
   };
 
-  const confirmarItem = async (id: string) => {
-    await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', id);
-    carregarDados();
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.reload();
   };
 
-  const deletarItem = async (id: string) => {
-    await supabase.from('lancamentos').delete().eq('id', id);
-    carregarDados();
-  };
+  // Se não estiver logado, mostra a tela de login
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center p-6">
+        <form onSubmit={handleLogin} className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem] w-full max-w-md">
+          <h1 className="text-3xl font-black text-blue-500 mb-6 italic tracking-tighter">GSA FLOW</h1>
+          <p className="text-zinc-400 text-xs mb-8 uppercase font-bold tracking-widest text-center">Acesso Restrito</p>
+          <input type="email" placeholder="E-mail" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-4 outline-none text-white" value={email} onChange={e => setEmail(e.target.value)} />
+          <input type="password" placeholder="Senha" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-6 outline-none text-white" value={password} onChange={e => setPassword(e.target.value)} />
+          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-xl hover:bg-blue-500 transition-all uppercase text-xs">Entrar no Sistema</button>
+        </form>
+      </div>
+    );
+  }
 
   // Lógica do Gráfico: Gastos por Categoria
   const gastosPorCategoria = CATEGORIAS_OPCOES
@@ -66,9 +85,13 @@ export default function Home() {
     <div className="min-h-screen bg-[#0b0e14] text-white p-8 font-sans text-sm">
       <header className="flex justify-between items-center mb-10 max-w-6xl mx-auto">
         <h1 className="text-3xl font-black text-blue-500 tracking-tighter italic">GSA FLOW</h1>
-        <div className="bg-zinc-900 px-4 py-1.5 rounded-full text-[10px] border border-zinc-800 uppercase font-bold tracking-widest text-zinc-400">Danilo Gomes</div>
+        <div className="flex items-center gap-4">
+          <div className="bg-zinc-900 px-4 py-1.5 rounded-full text-[10px] border border-zinc-800 uppercase font-bold tracking-widest text-zinc-400">Danilo Gomes</div>
+          <button onClick={handleLogout} className="text-zinc-600 hover:text-white transition-all text-xs">Sair</button>
+        </div>
       </header>
 
+      {/* ... Restante do código (Gráficos, Form e Lista) permanece igual ao anterior ... */}
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
         <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-blue-600/10 border border-blue-500/20 p-8 rounded-[2rem]">
@@ -96,7 +119,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* FORMULÁRIO COM CATEGORIA */}
       <div className="max-w-6xl mx-auto bg-zinc-900/40 p-6 rounded-[2rem] border border-zinc-800/50 mb-10">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
           <div className="flex bg-zinc-950 rounded-xl p-1">
@@ -109,7 +131,15 @@ export default function Home() {
           </select>
           <input type="text" placeholder="Descrição" className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 outline-none text-zinc-300 md:col-span-1" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
           <input type="number" placeholder="Valor" className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 outline-none text-zinc-300 font-mono" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
-          <button onClick={adicionarLancamento} className="bg-blue-600 text-white font-black p-3 rounded-xl hover:bg-blue-500 transition-all text-xs uppercase">Lançar</button>
+          <button onClick={async () => {
+              if (!novaDescricao || !novoValor) return;
+              const { error } = await supabase.from('lancamentos').insert([{ 
+                descricao: novaDescricao, valor: Number(novoValor), tipo: novoTipo, 
+                status: 'agendado', data_vencimento: novaData, categoria: novaCategoria 
+              }]);
+              if (!error) { setNovaDescricao(''); setNovoValor(''); carregarDados(); }
+            }} 
+            className="bg-blue-600 text-white font-black p-3 rounded-xl hover:bg-blue-500 transition-all text-xs uppercase">Lançar</button>
         </div>
       </div>
 
@@ -135,9 +165,15 @@ export default function Home() {
               </span>
               <div className="flex gap-2">
                 {item.status === 'agendado' && (
-                  <button onClick={() => confirmarItem(item.id)} className="bg-zinc-100 text-black text-[9px] font-black px-4 py-1.5 rounded-full hover:bg-blue-500 hover:text-white transition-all">CONFIRMAR</button>
+                  <button onClick={async () => {
+                      await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id);
+                      carregarDados();
+                    }} className="bg-zinc-100 text-black text-[9px] font-black px-4 py-1.5 rounded-full hover:bg-blue-500 hover:text-white transition-all">CONFIRMAR</button>
                 )}
-                <button onClick={() => deletarItem(item.id)} className="opacity-0 group-hover:opacity-100 text-zinc-700 hover:text-red-500 transition-all">🗑️</button>
+                <button onClick={async () => {
+                    await supabase.from('lancamentos').delete().eq('id', item.id);
+                    carregarDados();
+                  }} className="opacity-0 group-hover:opacity-100 text-zinc-700 hover:text-red-500 transition-all">🗑️</button>
               </div>
             </div>
           </div>

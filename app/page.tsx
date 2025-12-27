@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
+const META_MENSAL = 10000; // Altere este valor para a sua meta real
+
 const CATEGORIAS_OPCOES = [
   { label: '🏷️ Geral', value: 'Geral' },
   { label: '🚀 Marketing', value: 'Marketing' },
@@ -25,7 +27,6 @@ export default function Home() {
   const [novaCategoria, setNovaCategoria] = useState('Geral');
 
   useEffect(() => {
-    // Verificar se o usuário está logado
     const checkUser = async () => {
       const { data } = await supabase.auth.getUser();
       setUser(data.user);
@@ -51,22 +52,20 @@ export default function Home() {
     window.location.reload();
   };
 
-  // Se não estiver logado, mostra a tela de login
   if (!user) {
     return (
       <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center p-6">
         <form onSubmit={handleLogin} className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem] w-full max-w-md">
-          <h1 className="text-3xl font-black text-blue-500 mb-6 italic tracking-tighter">GSA FLOW</h1>
-          <p className="text-zinc-400 text-xs mb-8 uppercase font-bold tracking-widest text-center">Acesso Restrito</p>
-          <input type="email" placeholder="E-mail" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-4 outline-none text-white" value={email} onChange={e => setEmail(e.target.value)} />
-          <input type="password" placeholder="Senha" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-6 outline-none text-white" value={password} onChange={e => setPassword(e.target.value)} />
-          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-xl hover:bg-blue-500 transition-all uppercase text-xs">Entrar no Sistema</button>
+          <h1 className="text-3xl font-black text-blue-500 mb-6 italic tracking-tighter text-center">GSA FLOW</h1>
+          <p className="text-zinc-400 text-[10px] mb-8 uppercase font-black tracking-[0.2em] text-center underline decoration-blue-500/50">Acesso Restrito</p>
+          <input type="email" placeholder="E-mail" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-4 outline-none text-white focus:border-blue-500 transition-all" value={email} onChange={e => setEmail(e.target.value)} />
+          <input type="password" placeholder="Senha" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-6 outline-none text-white focus:border-blue-500 transition-all" value={password} onChange={e => setPassword(e.target.value)} />
+          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-xl hover:bg-blue-500 transition-all uppercase text-xs tracking-widest">Acessar Dashboard</button>
         </form>
       </div>
     );
   }
 
-  // Lógica do Gráfico: Gastos por Categoria
   const gastosPorCategoria = CATEGORIAS_OPCOES
     .filter(cat => cat.value !== 'Geral' || lancamentos.some(i => i.categoria === 'Geral' && i.tipo === 'saida'))
     .map(cat => ({
@@ -78,6 +77,9 @@ export default function Home() {
   const totalDespesas = lancamentos.filter(i => i.tipo === 'saida').reduce((acc, i) => acc + Number(i.valor), 0);
   const saldoPrevisto = totalReceitas - totalDespesas;
   const saldoCaixa = lancamentos.reduce((acc, item) => item.status === 'agendado' ? acc : (item.tipo === 'entrada' ? acc + Number(item.valor) : acc - Number(item.valor)), 0);
+  
+  // Cálculo da Meta
+  const progressoMeta = Math.min((totalReceitas / META_MENSAL) * 100, 100);
 
   const CORES = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 
@@ -87,27 +89,26 @@ export default function Home() {
         <h1 className="text-3xl font-black text-blue-500 tracking-tighter italic">GSA FLOW</h1>
         <div className="flex items-center gap-4">
           <div className="bg-zinc-900 px-4 py-1.5 rounded-full text-[10px] border border-zinc-800 uppercase font-bold tracking-widest text-zinc-400">Danilo Gomes</div>
-          <button onClick={handleLogout} className="text-zinc-600 hover:text-white transition-all text-xs">Sair</button>
+          <button onClick={handleLogout} className="text-zinc-600 hover:text-white transition-all text-[10px] font-black uppercase">Sair</button>
         </div>
       </header>
 
-      {/* ... Restante do código (Gráficos, Form e Lista) permanece igual ao anterior ... */}
-      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-blue-600/10 border border-blue-500/20 p-8 rounded-[2rem]">
-            <p className="text-blue-400 text-[10px] font-black mb-2 tracking-widest">FATURAMENTO PREVISTO</p>
-            <h2 className="text-5xl font-black tracking-tighter">{saldoPrevisto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h2>
+            <p className="text-blue-400 text-[10px] font-black mb-2 tracking-widest uppercase">Faturamento Mensal</p>
+            <h2 className="text-5xl font-black tracking-tighter">{totalReceitas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h2>
           </div>
           <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem]">
-            <p className="text-zinc-500 text-[10px] font-black mb-2 tracking-widest">SALDO EM CAIXA</p>
+            <p className="text-zinc-500 text-[10px] font-black mb-2 tracking-widest uppercase">Saldo Real em Caixa</p>
             <h2 className={`text-5xl font-black tracking-tighter ${saldoCaixa >= 0 ? 'text-green-500' : 'text-red-500'}`}>
               {saldoCaixa.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </h2>
           </div>
         </div>
 
-        <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[250px] flex flex-col items-center">
-          <p className="text-zinc-500 text-[10px] font-black uppercase mb-2">Distribuição de Despesas</p>
+        <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[250px] flex flex-col items-center justify-center">
+          <p className="text-zinc-500 text-[10px] font-black uppercase mb-2">Despesas por Setor</p>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie data={gastosPorCategoria} innerRadius={60} outerRadius={80} paddingAngle={8} dataKey="value" stroke="none">
@@ -116,6 +117,23 @@ export default function Home() {
               <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '12px' }} />
             </PieChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* BARRA DE META */}
+      <div className="max-w-6xl mx-auto mb-10 bg-zinc-900/20 border border-zinc-800 p-6 rounded-[2rem]">
+        <div className="flex justify-between items-end mb-3">
+            <div>
+                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1">Meta de Faturamento</p>
+                <p className="text-sm font-bold text-blue-400">{progressoMeta.toFixed(1)}% atingido</p>
+            </div>
+            <p className="text-xs font-black text-zinc-400 uppercase tracking-tighter">Objetivo: {META_MENSAL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+        </div>
+        <div className="w-full bg-zinc-950 h-4 rounded-full overflow-hidden border border-zinc-800">
+            <div 
+                className="h-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all duration-1000 ease-out shadow-[0_0_20px_rgba(37,99,235,0.3)]"
+                style={{ width: `${progressoMeta}%` }}
+            />
         </div>
       </div>
 

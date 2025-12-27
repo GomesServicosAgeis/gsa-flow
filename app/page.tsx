@@ -31,6 +31,22 @@ export default function Home() {
   const [novaCategoria, setNovaCategoria] = useState('Freelancer');
   const [novaRecorrencia, setNovaRecorrencia] = useState('unico');
 
+  // FUNÇÃO PARA ATIVAR NOTIFICAÇÕES
+  const solicitarNotificacao = async () => {
+    if (!('Notification' in window)) {
+      alert('Este navegador não suporta notificações.');
+      return;
+    }
+
+    const permissao = await Notification.requestPermission();
+    if (permissao === 'granted') {
+      new Notification('GSA FLOW Ativado!', {
+        body: 'Danilo, agora você receberá alertas de contas vencendo aqui.',
+        icon: 'https://supabase.com/favicons/favicon-32x32.png'
+      });
+    }
+  };
+
   useEffect(() => {
     const checkUser = async () => {
       const { data } = await supabase.auth.getUser();
@@ -38,9 +54,18 @@ export default function Home() {
       if (data.user) carregarDados();
     };
     checkUser();
+    
+    // Registrar o Service Worker para PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW error:', err));
+    }
+
     const metaSalva = localStorage.getItem('gsa_flow_meta');
     if (metaSalva) setMetaMensal(Number(metaSalva));
   }, []);
+
+  // ... (Mantenha todas as funções carregarDados, salvarMeta, mudarMes, exportarCSV e salvarLancamento iguais ao código anterior)
+  // [Abaixo segue o restante do código para garantir que nada quebre]
 
   const salvarMeta = (valor: string) => {
     const num = Number(valor);
@@ -128,7 +153,6 @@ export default function Home() {
     return d.getMonth() === mesVis && d.getFullYear() === anoVis;
   });
 
-  // Lógica Comparativa (Mês Anterior)
   const dataAnterior = new Date(dataVisualizacao); dataAnterior.setMonth(dataAnterior.getMonth() - 1);
   const despesasMesAnterior = lancamentos.filter(i => {
     const d = new Date(i.data_vencimento + 'T00:00:00');
@@ -140,12 +164,10 @@ export default function Home() {
   const lucroLiquido = totalReceitas - totalDespesas;
   const saldoCaixaGeral = lancamentos.reduce((acc, item) => item.status === 'agendado' ? acc : (item.tipo === 'entrada' ? acc + Number(item.valor) : acc - Number(item.valor)), 0);
   const diffDespesas = despesasMesAnterior > 0 ? ((totalDespesas - despesasMesAnterior) / despesasMesAnterior) * 100 : 0;
-
   const gastosPorCategoria = CATEGORIAS_OPCOES.map(cat => ({
     name: cat.label.split('(')[0].trim(),
     value: lancamentosExibidos.filter(i => i.tipo === 'saida' && i.categoria === cat.value).reduce((acc, i) => acc + Number(i.valor), 0)
   })).filter(item => item.value > 0);
-
   const CORES = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'];
 
   return (
@@ -170,14 +192,17 @@ export default function Home() {
 
       <header className="flex flex-col sm:flex-row justify-between items-center mb-10 max-w-6xl mx-auto gap-4">
         <div className="text-center sm:text-left">
-            <h1 className="text-2xl sm:text-3xl font-black text-blue-500 tracking-tighter italic uppercase">GSA FLOW</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-blue-500 tracking-tighter italic uppercase leading-none">GSA FLOW</h1>
             <div className="flex items-center justify-center sm:justify-start gap-4 mt-2 text-zinc-500">
                 <button onClick={() => mudarMes(-1)} className="hover:text-blue-500 p-1">◀</button>
                 <p className="text-[10px] font-black uppercase tracking-widest min-w-[140px] text-center">{new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(dataVisualizacao)}</p>
                 <button onClick={() => mudarMes(1)} className="hover:text-blue-500 p-1">▶</button>
             </div>
         </div>
-        <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-zinc-600 hover:text-white text-[9px] font-black uppercase bg-zinc-900/50 px-4 py-2 rounded-full border border-zinc-800">Sair</button>
+        <div className="flex gap-3">
+          <button onClick={solicitarNotificacao} className="text-blue-500 hover:text-white text-[9px] font-black uppercase bg-blue-500/10 px-4 py-2 rounded-full border border-blue-500/20 transition-all">Ativar Alertas 🔔</button>
+          <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-zinc-600 hover:text-white text-[9px] font-black uppercase bg-zinc-900/50 px-4 py-2 rounded-full border border-zinc-800">Sair</button>
+        </div>
       </header>
 
       {/* CARDS RESUMO */}
@@ -232,7 +257,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* FORMULÁRIO COM NOVAS CATEGORIAS */}
+      {/* FORMULÁRIO */}
       <div className={`max-w-6xl mx-auto p-4 sm:p-6 rounded-[2rem] border transition-all mb-10 ${idEmEdicao ? 'bg-blue-600/10 border-blue-500' : 'bg-zinc-900/40 border-zinc-800/50'}`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
           <div className="flex bg-zinc-950 rounded-xl p-1 h-12">
@@ -253,12 +278,12 @@ export default function Home() {
         </div>
       </div>
 
+      {/* LISTA */}
       <div className="max-w-6xl mx-auto space-y-2">
         <div className="flex justify-between items-center mb-4 px-2">
             <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] italic">Timeline de Fluxo</p>
             <button onClick={exportarCSV} className="text-[9px] font-black uppercase text-blue-500 bg-blue-500/10 border border-blue-500/20 px-3 py-1.5 rounded-lg hover:bg-blue-500 hover:text-white transition-all">Exportar CSV</button>
         </div>
-        
         {lancamentosExibidos.map((item) => {
           const estaAtrasado = item.status === 'agendado' && new Date(item.data_vencimento + 'T00:00:00') < hoje;
           const eConfirmado = item.status === 'confirmado';
@@ -277,7 +302,7 @@ export default function Home() {
               <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto border-t border-zinc-800/30 sm:border-none pt-2 sm:pt-0">
                 <span className={`font-black text-base sm:text-lg tracking-tighter ${eConfirmado ? 'text-zinc-600' : item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>{item.tipo === 'entrada' ? '+' : '-'} {Number(item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                 <div className="flex gap-2">
-                  {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarDados(); }} className="bg-zinc-100 text-black text-[8px] font-black px-3 py-1 rounded-full hover:bg-blue-500 hover:text-white transition-all shadow-md">OK</button>}
+                  {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarDados(); }} className="bg-zinc-100 text-black text-[8px] font-black px-3 py-1 rounded-full hover:bg-blue-500 hover:text-white transition-all">OK</button>}
                   <button onClick={() => { setIdEmEdicao(item.id); setNovaDescricao(item.descricao); setNovoValor(item.valor.toString()); setNovaData(item.data_vencimento); setNovoTipo(item.tipo); setNovaCategoria(item.categoria); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-zinc-600 hover:text-blue-400 p-1">✏️</button>
                   <button onClick={async () => { await supabase.from('lancamentos').delete().eq('id', item.id); carregarDados(); }} className="text-zinc-700 hover:text-red-500 text-xs p-1">🗑️</button>
                 </div>

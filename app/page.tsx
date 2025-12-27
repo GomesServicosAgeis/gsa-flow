@@ -69,6 +69,21 @@ export default function Home() {
     }
   }
 
+  const exportarCSV = () => {
+    try {
+      const fields = ['data_vencimento', 'descricao', 'valor', 'tipo', 'categoria', 'status'];
+      const opts = { fields, delimiter: ';', quote: '' };
+      const parser = new Parser(opts);
+      const csv = parser.parse(lancamentosExibidos);
+      const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `GSA_FLOW_RELATORIO_${new Intl.DateTimeFormat('pt-BR', { month: '2-digit', year: 'numeric' }).format(dataVisualizacao)}.csv`);
+      link.click();
+    } catch (err) { console.error(err); }
+  };
+
   const salvarLancamento = async () => {
     if (!novaDescricao || !novoValor) return;
     const valorNum = Number(novoValor);
@@ -193,31 +208,38 @@ export default function Home() {
                     <div className="h-full bg-blue-600 transition-all duration-1000" style={{ width: `${Math.min((totalReceitas / metaMensal) * 100, 100)}%` }} />
                 </div>
             </div>
-            <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[250px] flex flex-col items-center">
+            <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[280px] flex flex-col items-center">
               <p className="text-zinc-500 text-[9px] font-black uppercase mb-2">Despesas por Categoria</p>
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
+                <PieChart margin={{ top: 10, bottom: 30, left: 10, right: 10 }}>
                   <Pie data={gastosPorCategoria} innerRadius={45} outerRadius={60} paddingAngle={5} dataKey="value" stroke="none">
                     {gastosPorCategoria.map((_, index) => <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />)}
                   </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', fontSize: '10px' }} />
-                  <Legend verticalAlign="bottom" height={36} wrapperStyle={{ color: '#a1a1aa', fontSize: '9px', fontWeight: 'bold' }} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', fontSize: '10px', color: '#fff' }}
+                    itemStyle={{ color: '#fff' }}
+                  />
+                  <Legend verticalAlign="bottom" height={36} wrapperStyle={{ color: '#a1a1aa', fontSize: '9px', fontWeight: 'bold', paddingTop: '10px' }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
           </div>
         </>
       ) : (
-        /* DASHBOARD ANUAL */
+        /* DASHBOARD ANUAL CORRIGIDO */
         <div className="max-w-6xl mx-auto bg-zinc-900/20 border border-zinc-800 p-6 rounded-[2rem] mb-10 h-[400px]">
           <p className="text-blue-400 text-[10px] font-black uppercase mb-6 text-center">Desempenho Anual {anoVis}</p>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={dadosAnuais}>
+            <BarChart data={dadosAnuais} margin={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-              <XAxis dataKey="name" stroke="#71717a" fontSize={10} tickLine={false} axisLine={false} />
-              <YAxis stroke="#71717a" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v/1000}k`} />
-              <Tooltip cursor={{fill: '#27272a'}} contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', fontSize: '10px' }} />
-              <Legend wrapperStyle={{fontSize: '10px', paddingTop: '20px'}} />
+              <XAxis dataKey="name" stroke="#a1a1aa" fontSize={10} tickLine={false} axisLine={false} />
+              <YAxis stroke="#a1a1aa" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v/1000}k`} />
+              <Tooltip 
+                cursor={{fill: '#27272a'}} 
+                contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', fontSize: '10px', color: '#fff' }}
+                itemStyle={{ color: '#fff' }}
+              />
+              <Legend wrapperStyle={{fontSize: '10px', paddingTop: '20px', color: '#a1a1aa'}} />
               <Bar dataKey="receita" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Receitas" />
               <Bar dataKey="despesa" fill="#ef4444" radius={[4, 4, 0, 0]} name="Despesas" />
             </BarChart>
@@ -225,7 +247,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* FORMULÁRIO ULTIMATE */}
+      {/* FORMULÁRIO */}
       <div className={`max-w-6xl mx-auto p-4 sm:p-6 rounded-[2rem] border transition-all mb-10 ${idEmEdicao ? 'bg-blue-600/10 border-blue-500' : 'bg-zinc-900/40 border-zinc-800/50'}`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           <div className="flex bg-zinc-950 rounded-xl p-1 h-12">
@@ -242,14 +264,14 @@ export default function Home() {
           </select>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          <input type="text" placeholder="O que é esse lançamento?" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-xs text-white lg:col-span-1" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
-          <input type="number" placeholder="Valor R$" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none font-mono text-xs text-white" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
-          <input type="text" placeholder="Link do Comprovante / Notas" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-xs text-white lg:col-span-1" value={novoComprovante} onChange={e => setNovoComprovante(e.target.value)} />
-          <button onClick={salvarLancamento} className={`font-black h-12 rounded-xl text-[10px] uppercase text-white transition-all ${idEmEdicao ? 'bg-green-600 shadow-[0_0_15px_rgba(22,163,74,0.4)]' : 'bg-blue-600 shadow-[0_0_15px_rgba(37,99,235,0.4)]'}`}>{idEmEdicao ? 'Confirmar Edição' : 'Lançar no Fluxo'}</button>
+          <input type="text" placeholder="Descrição" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-xs text-white lg:col-span-1" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
+          <input type="number" placeholder="Valor" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none font-mono text-xs text-white" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
+          <input type="text" placeholder="Link do Comprovante" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 outline-none text-xs text-white lg:col-span-1" value={novoComprovante} onChange={e => setNovoComprovante(e.target.value)} />
+          <button onClick={salvarLancamento} className={`font-black h-12 rounded-xl text-[10px] uppercase text-white transition-all ${idEmEdicao ? 'bg-green-600' : 'bg-blue-600'}`}>{idEmEdicao ? 'Atualizar' : 'Lançar'}</button>
         </div>
       </div>
 
-      {/* FILTROS E LISTA */}
+      {/* LISTA E FILTROS */}
       <div className="max-w-6xl mx-auto space-y-2">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 px-2 gap-4">
             <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 w-full sm:w-auto no-scrollbar">
@@ -258,6 +280,7 @@ export default function Home() {
                 <button key={cat.value} onClick={() => setFiltroCategoria(cat.value)} className={`whitespace-nowrap px-3 py-1.5 rounded-full text-[8px] font-black uppercase border transition-all ${filtroCategoria === cat.value ? 'bg-blue-600 text-white border-blue-600' : 'border-zinc-800 text-zinc-500'}`}>{cat.label.split('(')[0]}</button>
               ))}
             </div>
+            <button onClick={exportarCSV} className="text-[9px] font-black uppercase text-blue-500 bg-blue-500/10 border border-blue-500/20 px-3 py-1.5 rounded-lg hover:bg-blue-500 hover:text-white transition-all">Exportar CSV</button>
         </div>
 
         {lancamentosExibidos.map((item) => {
@@ -270,7 +293,7 @@ export default function Home() {
                 <div className="overflow-hidden">
                   <div className="flex items-center gap-2">
                     <p className={`font-bold truncate max-w-[200px] sm:max-w-[300px] ${eConfirmado ? 'text-zinc-500 line-through' : 'text-zinc-300'}`}>{item.descricao}</p>
-                    {item.comprovante_url && <a href={item.comprovante_url} target="_blank" className="text-[10px] grayscale hover:grayscale-0 transition-all">📎</a>}
+                    {item.comprovante_url && <a href={item.comprovante_url} target="_blank" className="text-[10px]">📎</a>}
                   </div>
                   <div className="flex gap-2 items-center text-[8px] font-black uppercase tracking-widest text-zinc-600"><span>{item.categoria}</span><span>•</span><span>{item.status}</span></div>
                 </div>
@@ -287,6 +310,7 @@ export default function Home() {
           );
         })}
       </div>
+      <style jsx global>{` @keyframes pulse-slow { 0%, 100% { border-color: rgba(239, 68, 68, 0.4); } 50% { border-color: rgba(239, 68, 68, 0.8); } } .animate-pulse-slow { animation: pulse-slow 3s infinite; } `}</style>
     </div>
   );
 }

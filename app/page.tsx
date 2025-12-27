@@ -45,8 +45,25 @@ export default function Home() {
   };
 
   async function carregarDados() {
-    const { data } = await supabase.from('lancamentos').select('*').order('data_vencimento', { ascending: false });
-    if (data) setLancamentos(data);
+    const { data } = await supabase.from('lancamentos').select('*');
+    if (data) {
+      // Lógica de Ordenação Inteligente
+      const ordenados = data.sort((a, b) => {
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        
+        const dataA = new Date(a.data_vencimento);
+        const dataB = new Date(b.data_vencimento);
+        
+        // Regra 1: Confirmados sempre por último
+        if (a.status === 'confirmado' && b.status !== 'confirmado') return 1;
+        if (a.status !== 'confirmado' && b.status === 'confirmado') return -1;
+        
+        // Regra 2: Entre os agendados, os mais antigos (vencidos) primeiro
+        return dataA.getTime() - dataB.getTime();
+      });
+      setLancamentos(ordenados);
+    }
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -103,6 +120,7 @@ export default function Home() {
         <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-zinc-600 hover:text-white transition-all text-[9px] font-black uppercase bg-zinc-900/50 px-3 py-1.5 rounded-full border border-zinc-800">Sair</button>
       </header>
 
+      {/* CARDS RESUMO */}
       <div className="max-w-6xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <div className="bg-blue-600/10 border border-blue-500/20 p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem]">
           <p className="text-blue-400 text-[8px] font-black mb-1 tracking-widest uppercase">Receita</p>
@@ -124,6 +142,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* META E GRÁFICO */}
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
         <div className="lg:col-span-2 bg-zinc-900/20 border border-zinc-800 p-6 sm:p-8 rounded-[2rem] flex flex-col justify-center">
             <div className="flex justify-between items-end mb-4">
@@ -155,6 +174,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* FORMULÁRIO DE LANÇAMENTO */}
       <div className="max-w-6xl mx-auto bg-zinc-900/40 p-4 sm:p-6 rounded-[2rem] border border-zinc-800/50 mb-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           <div className="flex bg-zinc-950 rounded-xl p-1 h-12">
@@ -175,30 +195,35 @@ export default function Home() {
         </div>
       </div>
 
+      {/* LISTA ORGANIZADA POR URGÊNCIA */}
       <div className="max-w-6xl mx-auto space-y-2 pb-20">
-        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] mb-4 ml-2 italic">Histórico de Fluxo</p>
+        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] mb-4 ml-2 italic">Histórico Inteligente (Prioridade: Atrasados ⚡)</p>
         {lancamentos.map((item) => {
           const dataVenc = new Date(item.data_vencimento);
           dataVenc.setHours(24, 0, 0, 0); 
           const estaAtrasado = item.status === 'agendado' && dataVenc < hoje;
+          const eConfirmado = item.status === 'confirmado';
 
           return (
             <div key={item.id} className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-2xl border transition-all gap-3 sm:gap-0 
-              ${estaAtrasado 
-                ? 'bg-red-500/5 border-red-500/40 animate-pulse-slow' 
-                : 'bg-zinc-900/10 border-zinc-800/40 hover:bg-zinc-900/40'}`}>
+              ${eConfirmado 
+                ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60 grayscale-[0.5]' 
+                : estaAtrasado 
+                  ? 'bg-red-500/5 border-red-500/40 animate-pulse-slow' 
+                  : 'bg-zinc-900/10 border-zinc-800/40 hover:bg-zinc-900/40'}`}>
               
               <div className="flex items-center gap-4 w-full sm:w-auto">
-                <span className={`text-[9px] font-mono px-2 py-1 rounded ${estaAtrasado ? 'bg-red-500 text-white' : 'bg-zinc-800/30 text-zinc-500'}`}>
+                <span className={`text-[9px] font-mono px-2 py-1 rounded ${eConfirmado ? 'bg-zinc-800 text-zinc-500' : estaAtrasado ? 'bg-red-500 text-white' : 'bg-zinc-800/30 text-zinc-500'}`}>
                   {new Date(item.data_vencimento).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}
                 </span>
                 <div className="overflow-hidden">
                   <div className="flex items-center gap-2">
-                    <p className="font-bold text-zinc-300 truncate max-w-[200px] sm:max-w-[300px]">{item.descricao}</p>
+                    <p className={`font-bold truncate max-w-[200px] sm:max-w-[300px] ${eConfirmado ? 'text-zinc-500 line-through' : 'text-zinc-300'}`}>{item.descricao}</p>
                     {estaAtrasado && <span className="text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">Atrasado</span>}
+                    {eConfirmado && <span className="text-[8px] bg-green-900/50 text-green-500 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">Liquidado</span>}
                   </div>
                   <div className="flex gap-2 items-center text-[8px] font-black uppercase tracking-widest text-zinc-600">
-                    <span className="text-blue-500/70">{item.categoria}</span>
+                    <span className={eConfirmado ? 'text-zinc-700' : 'text-blue-500/70'}>{item.categoria}</span>
                     <span>•</span>
                     <span>{item.status}</span>
                   </div>
@@ -206,11 +231,11 @@ export default function Home() {
               </div>
 
               <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto border-t border-zinc-800/30 sm:border-none pt-2 sm:pt-0">
-                <span className={`font-black text-base sm:text-lg tracking-tighter ${item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>
+                <span className={`font-black text-base sm:text-lg tracking-tighter ${eConfirmado ? 'text-zinc-600' : item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>
                   {item.tipo === 'entrada' ? '+' : '-'} {Number(item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </span>
                 <div className="flex gap-2">
-                  {item.status === 'agendado' && (
+                  {!eConfirmado && (
                     <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarDados(); }} className="bg-zinc-100 text-black text-[8px] font-black px-3 py-1 rounded-full hover:bg-blue-500 hover:text-white transition-all">OK</button>
                   )}
                   <button onClick={async () => { await supabase.from('lancamentos').delete().eq('id', item.id); carregarDados(); }} className="opacity-100 sm:opacity-0 group-hover:opacity-100 text-zinc-700 hover:text-red-500 transition-all text-xs p-1">🗑️</button>

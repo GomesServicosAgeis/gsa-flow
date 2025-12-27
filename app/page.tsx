@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
-const META_MENSAL = 10000; // Altere este valor para a sua meta real
-
 const CATEGORIAS_OPCOES = [
   { label: '🏷️ Geral', value: 'Geral' },
   { label: '🚀 Marketing', value: 'Marketing' },
@@ -20,6 +18,10 @@ export default function Home() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [lancamentos, setLancamentos] = useState<any[]>([]);
+  const [metaMensal, setMetaMensal] = useState(10000);
+  const [editandoMeta, setEditandoMeta] = useState(false);
+  
+  // Estados para novo lançamento
   const [novaDescricao, setNovaDescricao] = useState('');
   const [novoValor, setNovoValor] = useState('');
   const [novaData, setNovaData] = useState(new Date().toISOString().split('T')[0]);
@@ -33,7 +35,17 @@ export default function Home() {
       if (data.user) carregarDados();
     };
     checkUser();
+
+    // Carregar meta do armazenamento local
+    const metaSalva = localStorage.getItem('gsa_flow_meta');
+    if (metaSalva) setMetaMensal(Number(metaSalva));
   }, []);
+
+  const salvarMeta = (valor: string) => {
+    const num = Number(valor);
+    setMetaMensal(num);
+    localStorage.setItem('gsa_flow_meta', valor);
+  };
 
   async function carregarDados() {
     const { data } = await supabase.from('lancamentos').select('*').order('data_vencimento', { ascending: false });
@@ -55,16 +67,20 @@ export default function Home() {
   if (!user) {
     return (
       <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center p-6">
-        <form onSubmit={handleLogin} className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem] w-full max-w-md">
-          <h1 className="text-3xl font-black text-blue-500 mb-6 italic tracking-tighter text-center">GSA FLOW</h1>
-          <p className="text-zinc-400 text-[10px] mb-8 uppercase font-black tracking-[0.2em] text-center underline decoration-blue-500/50">Acesso Restrito</p>
+        <form onSubmit={handleLogin} className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem] w-full max-w-md shadow-2xl">
+          <h1 className="text-3xl font-black text-blue-500 mb-6 italic tracking-tighter text-center uppercase">GSA FLOW</h1>
+          <p className="text-zinc-400 text-[10px] mb-8 uppercase font-black tracking-[0.2em] text-center underline decoration-blue-500/50">Área do Administrador</p>
           <input type="email" placeholder="E-mail" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-4 outline-none text-white focus:border-blue-500 transition-all" value={email} onChange={e => setEmail(e.target.value)} />
           <input type="password" placeholder="Senha" className="w-full bg-zinc-950 p-4 rounded-xl border border-zinc-800 mb-6 outline-none text-white focus:border-blue-500 transition-all" value={password} onChange={e => setPassword(e.target.value)} />
-          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-xl hover:bg-blue-500 transition-all uppercase text-xs tracking-widest">Acessar Dashboard</button>
+          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-xl hover:bg-blue-500 transition-all uppercase text-xs tracking-widest">Entrar no Cockpit</button>
         </form>
       </div>
     );
   }
+
+  const totalReceitas = lancamentos.filter(i => i.tipo === 'entrada').reduce((acc, i) => acc + Number(i.valor), 0);
+  const saldoCaixa = lancamentos.reduce((acc, item) => item.status === 'agendado' ? acc : (item.tipo === 'entrada' ? acc + Number(item.valor) : acc - Number(item.valor)), 0);
+  const progressoMeta = Math.min((totalReceitas / metaMensal) * 100, 100);
 
   const gastosPorCategoria = CATEGORIAS_OPCOES
     .filter(cat => cat.value !== 'Geral' || lancamentos.some(i => i.categoria === 'Geral' && i.tipo === 'saida'))
@@ -73,34 +89,27 @@ export default function Home() {
       value: lancamentos.filter(i => i.tipo === 'saida' && i.categoria === cat.value).reduce((acc, i) => acc + Number(i.valor), 0)
     })).filter(item => item.value > 0);
 
-  const totalReceitas = lancamentos.filter(i => i.tipo === 'entrada').reduce((acc, i) => acc + Number(i.valor), 0);
-  const totalDespesas = lancamentos.filter(i => i.tipo === 'saida').reduce((acc, i) => acc + Number(i.valor), 0);
-  const saldoPrevisto = totalReceitas - totalDespesas;
-  const saldoCaixa = lancamentos.reduce((acc, item) => item.status === 'agendado' ? acc : (item.tipo === 'entrada' ? acc + Number(item.valor) : acc - Number(item.valor)), 0);
-  
-  // Cálculo da Meta
-  const progressoMeta = Math.min((totalReceitas / META_MENSAL) * 100, 100);
-
   const CORES = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 
   return (
-    <div className="min-h-screen bg-[#0b0e14] text-white p-8 font-sans text-sm">
+    <div className="min-h-screen bg-[#0b0e14] text-white p-8 font-sans text-sm selection:bg-blue-500/30">
       <header className="flex justify-between items-center mb-10 max-w-6xl mx-auto">
         <h1 className="text-3xl font-black text-blue-500 tracking-tighter italic">GSA FLOW</h1>
         <div className="flex items-center gap-4">
           <div className="bg-zinc-900 px-4 py-1.5 rounded-full text-[10px] border border-zinc-800 uppercase font-bold tracking-widest text-zinc-400">Danilo Gomes</div>
-          <button onClick={handleLogout} className="text-zinc-600 hover:text-white transition-all text-[10px] font-black uppercase">Sair</button>
+          <button onClick={handleLogout} className="text-zinc-600 hover:text-white transition-all text-[10px] font-black uppercase bg-zinc-900/50 px-3 py-1.5 rounded-lg border border-zinc-800">Sair</button>
         </div>
       </header>
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-blue-600/10 border border-blue-500/20 p-8 rounded-[2rem]">
-            <p className="text-blue-400 text-[10px] font-black mb-2 tracking-widest uppercase">Faturamento Mensal</p>
-            <h2 className="text-5xl font-black tracking-tighter">{totalReceitas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h2>
+          <div className="bg-blue-600/10 border border-blue-500/20 p-8 rounded-[2rem] relative overflow-hidden group">
+            <div className="absolute -right-4 -bottom-4 text-blue-500/10 text-9xl font-black italic group-hover:scale-110 transition-transform">G</div>
+            <p className="text-blue-400 text-[10px] font-black mb-2 tracking-widest uppercase relative z-10">Faturamento Mensal</p>
+            <h2 className="text-5xl font-black tracking-tighter relative z-10">{totalReceitas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h2>
           </div>
           <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem]">
-            <p className="text-zinc-500 text-[10px] font-black mb-2 tracking-widest uppercase">Saldo Real em Caixa</p>
+            <p className="text-zinc-500 text-[10px] font-black mb-2 tracking-widest uppercase">Saldo em Caixa</p>
             <h2 className={`text-5xl font-black tracking-tighter ${saldoCaixa >= 0 ? 'text-green-500' : 'text-red-500'}`}>
               {saldoCaixa.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </h2>
@@ -120,14 +129,33 @@ export default function Home() {
         </div>
       </div>
 
-      {/* BARRA DE META */}
+      {/* BARRA DE META EDITÁVEL */}
       <div className="max-w-6xl mx-auto mb-10 bg-zinc-900/20 border border-zinc-800 p-6 rounded-[2rem]">
         <div className="flex justify-between items-end mb-3">
             <div>
                 <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1">Meta de Faturamento</p>
                 <p className="text-sm font-bold text-blue-400">{progressoMeta.toFixed(1)}% atingido</p>
             </div>
-            <p className="text-xs font-black text-zinc-400 uppercase tracking-tighter">Objetivo: {META_MENSAL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+            <div className="flex flex-col items-end">
+                {editandoMeta ? (
+                    <input 
+                        autoFocus
+                        type="number" 
+                        className="bg-zinc-950 border border-blue-500 p-1 rounded text-right w-32 outline-none font-mono text-xs"
+                        onBlur={() => setEditandoMeta(false)}
+                        onChange={(e) => salvarMeta(e.target.value)}
+                        value={metaMensal}
+                    />
+                ) : (
+                    <button 
+                        onClick={() => setEditandoMeta(true)}
+                        className="text-xs font-black text-zinc-400 uppercase tracking-tighter hover:text-blue-500 transition-colors flex items-center gap-2"
+                    >
+                        Objetivo: {metaMensal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        <span className="text-[10px]">✏️</span>
+                    </button>
+                )}
+            </div>
         </div>
         <div className="w-full bg-zinc-950 h-4 rounded-full overflow-hidden border border-zinc-800">
             <div 
@@ -137,6 +165,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* RESTO DO CÓDIGO (FORMULÁRIO E LISTA) */}
       <div className="max-w-6xl mx-auto bg-zinc-900/40 p-6 rounded-[2rem] border border-zinc-800/50 mb-10">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
           <div className="flex bg-zinc-950 rounded-xl p-1">
@@ -165,7 +194,7 @@ export default function Home() {
         {lancamentos.map((item) => (
           <div key={item.id} className="flex justify-between items-center bg-zinc-900/20 p-5 rounded-2xl border border-zinc-800 group hover:bg-zinc-900/50 transition-all">
             <div className="flex items-center gap-6">
-              <span className="text-[11px] font-bold text-zinc-400 bg-zinc-800/50 px-3 py-1 rounded-lg border border-zinc-700/30">
+              <span className="text-[11px] font-bold text-zinc-400 bg-zinc-800/50 px-3 py-1 rounded-lg border border-zinc-700/30 font-mono">
                 {new Date(item.data_vencimento).toLocaleDateString('pt-BR')}
               </span>
               <div>

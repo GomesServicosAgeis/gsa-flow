@@ -138,10 +138,10 @@ export default function Home() {
   const anoVisualizacao = dataVisualizacao.getFullYear();
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   
-  // Alertas corrigidos
+  // LÓGICA GLOBAL DE ATRASADOS: Verifica todos os lançamentos do banco, não apenas o mês visível
   const itensAtrasadosGeral = lancamentos.filter(i => {
-    const d = new Date(i.data_vencimento + 'T00:00:00');
-    return i.status === 'agendado' && d < hoje;
+    const dataVenc = new Date(i.data_vencimento + 'T00:00:00');
+    return i.status === 'agendado' && dataVenc < hoje;
   });
 
   const lancamentosExibidos = lancamentos.filter(i => {
@@ -165,20 +165,21 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#0b0e14] text-white p-4 sm:p-8 font-sans text-sm pb-24">
       
-      {/* PAINEL DE ALERTAS CORRIGIDO */}
+      {/* PAINEL DE ALERTAS GLOBAL */}
       {itensAtrasadosGeral.length > 0 && (
         <div className="max-w-6xl mx-auto mb-6 bg-red-600/10 border border-red-500/30 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 transition-all">
            <div className="flex items-center gap-3 text-center sm:text-left">
               <span className="text-xl animate-bounce">⚠️</span>
               <div>
                 <p className="text-[10px] font-black uppercase tracking-tighter text-red-500">Atenção Danilo</p>
-                <p className="text-xs font-bold text-zinc-300">Há {itensAtrasadosGeral.length} pendências fora do prazo.</p>
+                <p className="text-xs font-bold text-zinc-300">Há {itensAtrasadosGeral.length} pendências atrasadas no histórico geral.</p>
               </div>
            </div>
            <button 
             onClick={() => {
-              // Pega o item mais antigo e navega para o mês dele
-              const maisAntigo = itensAtrasadosGeral.sort((a,b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime())[0];
+              // Encontra o item atrasado mais antigo de todo o histórico
+              const ordenados = [...itensAtrasadosGeral].sort((a,b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime());
+              const maisAntigo = ordenados[0];
               const dataIr = new Date(maisAntigo.data_vencimento + 'T00:00:00');
               setDataVisualizacao(dataIr);
             }} 

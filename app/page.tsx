@@ -6,7 +6,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Ba
 // @ts-ignore
 import { Parser } from 'json2csv';
 
-export default function GSAFlowBrasilCompleto() {
+export default function GSAFlowLançamento() {
+  // --- ESTADOS DO SISTEMA ---
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
@@ -26,7 +27,7 @@ export default function GSAFlowBrasilCompleto() {
   const [filtroCategoria, setFiltroCategoria] = useState('Todas');
   const [mostrarConfig, setMostrarConfig] = useState(false);
 
-  // Estados de Cadastro
+  // Estados de Cadastro de Lançamento
   const [idEmEdicao, setIdEmEdicao] = useState<string | null>(null);
   const [novaDescricao, setNovaDescricao] = useState('');
   const [novoValor, setNovoValor] = useState('');
@@ -35,11 +36,16 @@ export default function GSAFlowBrasilCompleto() {
   const [novaCategoria, setNovaCategoria] = useState('Freelancer');
   const [novoComprovante, setNovoComprovante] = useState('');
 
-  // Config Perfil
+  // Estados de Configuração de Perfil
   const [editNomeEmpresa, setEditNomeEmpresa] = useState('');
   const [editMeta, setEditMeta] = useState(0);
   const [novaCatInput, setNovaCatInput] = useState('');
 
+  // Estado de Feedback
+  const [feedback, setFeedback] = useState('');
+  const [enviandoFeedback, setEnviandoFeedback] = useState(false);
+
+  // --- INICIALIZAÇÃO E CARREGAMENTO ---
   useEffect(() => {
     const sessionInit = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -71,12 +77,7 @@ export default function GSAFlowBrasilCompleto() {
     if (data) setLancamentos(data.sort((a,b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime()));
   }
 
-  async function atualizarPerfil() {
-    await supabase.from('perfis_usuarios').update({ nome_empresa: editNomeEmpresa, meta_faturamento: editMeta, categorias: perfil.categorias }).eq('id', user.id);
-    setPerfil({...perfil, nome_empresa: editNomeEmpresa, meta_faturamento: editMeta});
-    setMostrarConfig(false);
-  }
-
+  // --- AÇÕES DO USUÁRIO ---
   const handleAuth = async (e: any) => {
     e.preventDefault();
     const { error } = isSignUp ? await supabase.auth.signUp({email, password}) : await supabase.auth.signInWithPassword({email, password});
@@ -90,6 +91,27 @@ export default function GSAFlowBrasilCompleto() {
     else await supabase.from('lancamentos').insert(payload);
     setNovaDescricao(''); setNovoValor(''); setNovoComprovante(''); setIdEmEdicao(null); carregarLancamentos();
   };
+
+  async function atualizarPerfil() {
+    await supabase.from('perfis_usuarios').update({ nome_empresa: editNomeEmpresa, meta_faturamento: editMeta, categorias: perfil.categorias }).eq('id', user.id);
+    setPerfil({...perfil, nome_empresa: editNomeEmpresa, meta_faturamento: editMeta});
+    setMostrarConfig(false);
+  }
+
+  async function enviarFeedback() {
+    if (!feedback) return;
+    setEnviandoFeedback(true);
+    const { error } = await supabase.from('feedbacks').insert({
+      user_id: user.id,
+      user_email: user.email,
+      mensagem: feedback
+    });
+    if (!error) {
+      alert("Feedback enviado! A Gomes Serviços Ágeis agradece sua sugestão.");
+      setFeedback('');
+    }
+    setEnviandoFeedback(false);
+  }
 
   const exportarCSV = () => {
     try {
@@ -106,13 +128,13 @@ export default function GSAFlowBrasilCompleto() {
 
   if (loading) return <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center text-blue-500 font-black animate-pulse uppercase italic">GSA FLOW</div>;
 
+  // --- LÓGICA DE ADMIN E TRAVA ---
   const isAdmin = user?.email === 'gomesservicosageis@gmail.com';
-const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira_em) < new Date();
+  const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira_em) < new Date();
 
-  // --- TRAVA DE ACESSO ---
   if (user && assinaturaVencida) {
     return (
-      <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center p-6 text-white text-center font-sans">
+      <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center p-6 text-white text-center">
         <div className="bg-zinc-900 border border-red-500/50 p-10 rounded-[3rem] w-full max-w-md shadow-2xl">
           <div className="text-5xl mb-6">🔒</div>
           <h1 className="text-2xl font-black text-red-500 uppercase italic mb-2 tracking-tighter">Acesso Suspenso</h1>
@@ -121,7 +143,7 @@ const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira
             <a href="https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=eb0e8f15cbbd4be085473bca86164037" className="block bg-blue-600 p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500 shadow-lg shadow-blue-600/20">Assinar Mensal (Cartão)</a>
             <a href="https://mpago.li/1fcbewH" className="block bg-zinc-800 p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest border border-zinc-700 hover:bg-zinc-700">Pagar 30 dias (Pix/Boleto)</a>
           </div>
-          <button onClick={() => window.location.reload()} className="mt-8 text-blue-500 text-[10px] font-black uppercase underline">Já paguei, quero entrar</button>
+          <button onClick={() => window.location.reload()} className="mt-8 text-blue-500 text-[10px] font-black uppercase underline italic">Já paguei, quero entrar</button>
         </div>
       </div>
     );
@@ -137,12 +159,12 @@ const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira
           <input type="password" placeholder="Senha" className="w-full bg-zinc-950 p-4 rounded-2xl border border-zinc-800 text-white outline-none focus:border-blue-500 text-sm" value={password} onChange={e => setPassword(e.target.value)} required />
           <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-2xl uppercase text-xs tracking-widest">Entrar no Cockpit</button>
         </form>
-        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full mt-8 text-zinc-500 text-[9px] font-black uppercase">{isSignUp ? 'Já tem conta? Login' : 'Criar Conta Grátis'}</button>
+        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full mt-8 text-zinc-500 text-[9px] font-black uppercase tracking-widest">{isSignUp ? 'Já tem conta? Login' : 'Criar Conta Grátis'}</button>
       </div>
     </div>
   );
 
-  // --- LÓGICA DE DADOS DO DASHBOARD ---
+  // --- CÁLCULOS DO DASHBOARD ---
   const mesVis = dataVisualizacao.getMonth();
   const anoVis = dataVisualizacao.getFullYear();
   const hoje = new Date(); hoje.setHours(0,0,0,0);
@@ -166,6 +188,7 @@ const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira
 
   return (
     <div className="min-h-screen bg-[#0b0e14] text-white p-4 sm:p-8 font-sans text-sm pb-24">
+      
       {/* MODAL CONFIGURAÇÃO */}
       {mostrarConfig && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
@@ -173,7 +196,7 @@ const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira
             <h2 className="text-xl font-black text-blue-500 uppercase italic mb-6">Configurações</h2>
             <div className="space-y-4 mb-8 text-left">
               <input type="text" placeholder="Nome da Empresa" className="w-full bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-white outline-none" value={editNomeEmpresa} onChange={e => setEditNomeEmpresa(e.target.value)} />
-              <input type="number" placeholder="Meta de Faturamento" className="w-full bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-white outline-none" value={editMeta} onChange={e => setEditMeta(Number(e.target.value))} />
+              <input type="number" placeholder="Meta" className="w-full bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-white outline-none" value={editMeta} onChange={e => setEditMeta(Number(e.target.value))} />
               <div className="flex gap-2">
                 <input type="text" placeholder="Nova Categoria" className="flex-1 bg-zinc-950 p-2 rounded-xl border border-zinc-800 text-white outline-none" value={novaCatInput} onChange={e => setNovaCatInput(e.target.value)} />
                 <button onClick={() => { if(novaCatInput) setPerfil({...perfil, categorias: [...perfil.categorias, novaCatInput]}); setNovaCatInput(''); }} className="bg-blue-600 px-4 rounded-xl font-black">+</button>
@@ -189,14 +212,6 @@ const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira
               <button onClick={() => setMostrarConfig(false)} className="bg-zinc-800 p-3 rounded-xl font-black uppercase text-[10px]">Fechar</button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* ALERTAS DE ATRASO */}
-      {itensAtrasadosGeral.length > 0 && (
-        <div className="max-w-6xl mx-auto mb-6 bg-red-600/10 border border-red-500/30 p-4 rounded-2xl flex justify-between items-center gap-4">
-           <p className="text-xs font-bold">⚠️ Olá {perfil.nome_empresa}, você tem {itensAtrasadosGeral.length} contas pendentes.</p>
-           <button onClick={() => setDataVisualizacao(new Date(itensAtrasadosGeral[0].data_vencimento + 'T00:00:00'))} className="bg-red-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase">Ver Agora</button>
         </div>
       )}
 
@@ -216,7 +231,7 @@ const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira
         </div>
       </header>
 
-      {/* CARDS PRINCIPAIS */}
+      {/* CARDS BI */}
       <div className="max-w-6xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-blue-600/10 border border-blue-500/20 p-6 rounded-[2rem]"><p className="text-blue-400 text-[8px] font-black uppercase">Entradas</p><h2 className="text-2xl font-black italic">R$ {totalReceitas.toLocaleString('pt-BR')}</h2></div>
         <div className="bg-red-600/10 border border-red-500/20 p-6 rounded-[2rem]"><p className="text-red-400 text-[8px] font-black uppercase">Saídas</p><h2 className="text-2xl font-black italic">R$ {totalDespesas.toLocaleString('pt-BR')}</h2></div>
@@ -229,7 +244,7 @@ const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira
         <div className="lg:col-span-2 bg-zinc-900/20 border border-zinc-800 p-8 rounded-[2rem] flex flex-col justify-center">
             <p className="text-blue-400 text-[10px] font-black uppercase mb-4 text-center">Progresso de Faturamento</p>
             <div className="w-full bg-zinc-950 h-5 rounded-full border border-zinc-800 overflow-hidden">
-                <div className="h-full bg-blue-600 transition-all duration-1000 shadow-[0_0_20px_rgba(37,99,235,0.3)]" style={{ width: `${Math.min((totalReceitas / perfil.meta_faturamento) * 100, 100)}%` }} />
+                <div className="h-full bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.3)]" style={{ width: `${Math.min((totalReceitas / perfil.meta_faturamento) * 100, 100)}%` }} />
             </div>
         </div>
         <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[280px]">
@@ -245,44 +260,43 @@ const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira
         </div>
       </div>
 
-      {/* FORMULÁRIO DE LANÇAMENTO */}
+      {/* FORMULÁRIO */}
       <div className={`max-w-6xl mx-auto p-6 rounded-[2.5rem] border mb-10 transition-all ${idEmEdicao ? 'bg-blue-600/10 border-blue-500' : 'bg-zinc-900/40 border-zinc-800/50'}`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           <div className="flex bg-zinc-950 rounded-xl p-1 h-12">
-            <button onClick={() => setNovoTipo('entrada')} className={`flex-1 rounded-lg text-[9px] font-black uppercase ${novoTipo === 'entrada' ? 'bg-blue-600 text-white' : 'text-zinc-600'}`}>Receita</button>
-            <button onClick={() => setNovoTipo('saida')} className={`flex-1 rounded-lg text-[9px] font-black uppercase ${novoTipo === 'saida' ? 'bg-red-600 text-white' : 'text-zinc-600'}`}>Saída</button>
+            <button onClick={() => setNovoTipo('entrada')} className={`flex-1 rounded-lg text-[9px] font-black uppercase ${novoTipo === 'entrada' ? 'bg-blue-600' : 'text-zinc-600'}`}>Receita</button>
+            <button onClick={() => setNovoTipo('saida')} className={`flex-1 rounded-lg text-[9px] font-black uppercase ${novoTipo === 'saida' ? 'bg-red-600' : 'text-zinc-600'}`}>Saída</button>
           </div>
-          <input type="date" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novaData} onChange={e => setNovaData(e.target.value)} />
-          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white uppercase font-black outline-none" value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)}>
+          <input type="date" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white" value={novaData} onChange={e => setNovaData(e.target.value)} />
+          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white uppercase font-black" value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)}>
             {perfil.categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
           </select>
           <input type="text" placeholder="Link do Comprovante" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novoComprovante} onChange={e => setNovoComprovante(e.target.value)} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          <input type="text" placeholder="Descrição" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none lg:col-span-1" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
+          <input type="text" placeholder="Descrição" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
           <input type="number" placeholder="Valor R$" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white font-mono outline-none" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
-          <button onClick={salvarLancamento} className="bg-blue-600 hover:bg-blue-500 text-white font-black h-12 rounded-xl text-[9px] uppercase tracking-widest shadow-lg shadow-blue-600/20">{idEmEdicao ? 'Salvar Alteração' : 'Lançar no Cockpit'}</button>
+          <button onClick={salvarLancamento} className="bg-blue-600 hover:bg-blue-500 text-white font-black h-12 rounded-xl text-[9px] uppercase tracking-widest shadow-lg shadow-blue-600/20">{idEmEdicao ? 'Salvar' : 'Lançar'}</button>
         </div>
       </div>
 
-      {/* LISTAGEM DE LANÇAMENTOS */}
-      <div className="max-w-6xl mx-auto space-y-2">
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 px-4 gap-4">
-            <div className="flex gap-2 overflow-x-auto no-scrollbar w-full sm:w-auto">
+      {/* LISTAGEM */}
+      <div className="max-w-6xl mx-auto space-y-2 mb-20">
+        <div className="flex justify-between items-center mb-6 px-4">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar">
               <button onClick={() => setFiltroCategoria('Todas')} className={`px-4 py-2 rounded-full text-[8px] font-black uppercase border ${filtroCategoria === 'Todas' ? 'bg-white text-black' : 'border-zinc-800 text-zinc-500'}`}>Todas</button>
               {perfil.categorias.map(cat => (
-                <button key={cat} onClick={() => setFiltroCategoria(cat)} className={`whitespace-nowrap px-4 py-2 rounded-full text-[8px] font-black uppercase border ${filtroCategoria === cat ? 'bg-blue-600 text-white' : 'border-zinc-800 text-zinc-500'}`}>{cat}</button>
+                <button key={cat} onClick={() => setFiltroCategoria(cat)} className={`whitespace-nowrap px-4 py-2 rounded-full text-[8px] font-black uppercase border ${filtroCategoria === cat ? 'bg-blue-600' : 'border-zinc-800 text-zinc-500'}`}>{cat}</button>
               ))}
             </div>
-            <button onClick={exportarCSV} className="text-zinc-500 hover:text-white text-xl p-2 bg-zinc-900 border border-zinc-800 rounded-xl transition-all">📥</button>
+            <button onClick={exportarCSV} className="text-zinc-500 hover:text-white text-xl p-2 bg-zinc-900 border border-zinc-800 rounded-xl">📥</button>
         </div>
 
         {lancamentosExibidos.map((item) => {
-          const estaAtrasado = item.status === 'agendado' && new Date(item.data_vencimento + 'T00:00:00') < hoje;
           const eConfirmado = item.status === 'confirmado';
           return (
-            <div key={item.id} className={`flex flex-col sm:flex-row justify-between items-center p-5 rounded-[1.8rem] border transition-all gap-4 ${eConfirmado ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60' : estaAtrasado ? 'bg-red-500/10 border-red-500/40 animate-pulse-slow' : 'bg-zinc-900/10 border-zinc-800/40 hover:bg-zinc-900/20'}`}>
-              <div className="flex items-center gap-4 w-full sm:w-auto text-left">
+            <div key={item.id} className={`flex justify-between items-center p-5 rounded-[1.8rem] border transition-all ${eConfirmado ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60' : 'bg-zinc-900/10 border-zinc-800/40 hover:bg-zinc-900/20'}`}>
+              <div className="flex items-center gap-4 text-left">
                 <span className="text-[9px] font-mono bg-zinc-800/50 px-3 py-1.5 rounded-lg text-zinc-500">{new Date(item.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</span>
                 <div>
                   <div className="flex items-center gap-2">
@@ -292,7 +306,7 @@ const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira
                   <p className="text-[8px] font-black uppercase text-zinc-600 tracking-widest">{item.categoria}</p>
                 </div>
               </div>
-              <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto">
+              <div className="flex items-center gap-6">
                 <span className={`font-black text-lg tracking-tighter ${eConfirmado ? 'text-zinc-700' : item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>{item.tipo === 'entrada' ? '+' : '-'} R$ {Number(item.valor).toLocaleString('pt-BR')}</span>
                 <div className="flex gap-2">
                   {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarLancamentos(); }} className="bg-white text-black text-[8px] font-black px-4 py-2 rounded-full h-8 uppercase">OK</button>}
@@ -304,7 +318,27 @@ const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira
           );
         })}
       </div>
-      <style jsx global>{` @keyframes pulse-slow { 0%, 100% { border-color: rgba(239, 68, 68, 0.4); } 50% { border-color: rgba(239, 68, 68, 0.8); } } .animate-pulse-slow { animation: pulse-slow 3s infinite; } .no-scrollbar::-webkit-scrollbar { display: none; } `}</style>
+
+      {/* NOVO CAMPO DE FEEDBACK */}
+      <div className="max-w-6xl mx-auto p-10 bg-zinc-900/20 border border-zinc-800/50 rounded-[3rem] text-center">
+          <h3 className="text-blue-500 font-black uppercase italic text-sm mb-6 tracking-widest">GSA FLOW Feedback</h3>
+          <textarea 
+            className="w-full bg-zinc-950 p-6 rounded-3xl border border-zinc-800 text-white outline-none focus:border-blue-500 text-sm mb-6 transition-all"
+            placeholder="O que você achou do sistema? Deixe sua sugestão ou crítica aqui..."
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
+            rows={4}
+          />
+          <button 
+            onClick={enviarFeedback}
+            disabled={enviandoFeedback}
+            className="bg-blue-600 hover:bg-blue-500 px-10 py-4 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20"
+          >
+            {enviandoFeedback ? 'Enviando...' : 'Enviar Sugestão'}
+          </button>
+      </div>
+
+      <style jsx global>{` .no-scrollbar::-webkit-scrollbar { display: none; } `}</style>
     </div>
   );
 }

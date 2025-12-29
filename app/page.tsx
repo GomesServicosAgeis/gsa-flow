@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
 
-export default function GSAFlowV160() {
-  // --- ESTADOS DE AUTENTICAÇÃO E PERFIL ---
+export default function GSAFlowV161() {
+  // --- ESTADOS DE SISTEMA E PERFIL ---
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [perfil, setPerfil] = useState<any>(null);
@@ -41,17 +41,15 @@ export default function GSAFlowV160() {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        // Busca o perfil com prioridade para validar a trava
         const { data: prof } = await supabase.from('perfis_usuarios').select('*').eq('id', session.user.id).single();
         if (prof) {
           setPerfil(prof);
           setEditNomeEmpresa(prof.nome_empresa);
           setEditMeta(prof.meta_faturamento);
         } else {
-          // Criar perfil trial se não existir
           const dataExp = new Date(); dataExp.setDate(dataExp.getDate() + 3);
           const { data: nProf } = await supabase.from('perfis_usuarios').insert({ 
-            id: session.user.id, expira_em: dataExp.toISOString(), nome_empresa: 'Minha Empresa GSA',
+            id: session.user.id, expira_em: dataExp.toISOString(), nome_empresa: 'Meu Negócio',
             categorias: ['Freelancer', 'Pessoal', 'Transporte', 'Fixos', 'Contas'], meta_faturamento: 10000
           }).select().single();
           if (nProf) setPerfil(nProf);
@@ -68,14 +66,14 @@ export default function GSAFlowV160() {
     if (data) setLancamentos(data.sort((a,b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime()));
   }
 
-  // --- LÓGICA DE TRAVA SINCRONIZADA ---
+  // --- LÓGICA DE SEGURANÇA BLOQUEANTE ---
   const isAdmin = user?.email === 'gomesservicosageis@gmail.com';
   const hoje = new Date();
   const dataExpiracao = perfil?.expira_em ? new Date(perfil.expira_em) : null;
-  // Bloqueia se: Não for admin E (Perfil já carregou E data expirou)
+  
+  // Condição de Bloqueio baseada nos logs observados
   const assinaturaVencida = user && !isAdmin && perfil && (dataExpiracao && hoje > dataExpiracao);
 
-  // --- FUNÇÕES DE AÇÃO ---
   async function atualizarPerfil() {
     if (!user) return;
     const { error } = await supabase.from('perfis_usuarios').update({ 
@@ -122,7 +120,7 @@ export default function GSAFlowV160() {
   );
 
   if (user && assinaturaVencida) return (
-    <div className="min-h-screen bg-[#06080a] flex items-center justify-center p-6 text-white text-center font-sans overflow-hidden">
+    <div className="min-h-screen bg-[#06080a] flex items-center justify-center p-6 text-white text-center font-sans">
       <div className="bg-zinc-900 border border-red-500/40 p-10 rounded-[3.5rem] w-full max-w-md shadow-[0_0_60px_rgba(239,68,68,0.2)] backdrop-blur-xl relative z-10 animate-in zoom-in duration-300">
         <div className="text-7xl mb-6">🔒</div>
         <h2 className="text-3xl font-black text-red-500 uppercase italic mb-4 tracking-tighter leading-none">Acesso Expirado</h2>
@@ -203,7 +201,7 @@ export default function GSAFlowV160() {
                 <input type="number" className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white outline-none focus:border-blue-500/50 font-mono" value={editMeta} onChange={e => setEditMeta(Number(e.target.value))} />
               </div>
               <div>
-                <label className="text-[9px] font-black uppercase text-zinc-500 tracking-widest mb-2 block font-sans">Categorias</label>
+                <label className="text-[9px] font-black uppercase text-zinc-500 tracking-widest mb-2 block font-sans">Gerenciar Categorias</label>
                 <div className="flex gap-2 mb-4">
                   <input type="text" className="flex-1 bg-black/40 p-3 rounded-xl border border-white/5 text-xs text-white" value={novaCatInput} onChange={e => setNovaCatInput(e.target.value)} placeholder="Nova..." />
                   <button onClick={() => { if(novaCatInput) { setPerfil({...perfil, categorias: [...perfil.categorias, novaCatInput]}); setNovaCatInput(''); } }} className="bg-blue-600 px-4 rounded-xl font-black shadow-lg shadow-blue-600/20">+</button>
@@ -223,7 +221,7 @@ export default function GSAFlowV160() {
         </div>
       )}
 
-      {/* ALERTA GLOBAL */}
+      {/* ALERTA GLOBAL (image_8ac06d.png) */}
       {itensAtrasadosGeral.length > 0 && (
         <div className="max-w-7xl mx-auto mb-6 bg-red-600/10 border border-red-500/30 p-4 rounded-3xl flex justify-between items-center gap-4 backdrop-blur-md shadow-lg shadow-red-900/10 animate-in slide-in-from-top duration-500">
            <div className="flex items-center gap-3">
@@ -234,7 +232,7 @@ export default function GSAFlowV160() {
         </div>
       )}
 
-      {/* HEADER */}
+      {/* HEADER (image_89db6e.png) */}
       <header className="flex flex-col sm:flex-row justify-between items-center mb-10 max-w-7xl mx-auto gap-4">
         <div>
           <h1 className="text-3xl font-black text-blue-500 italic uppercase leading-none tracking-tighter">GSA FLOW</h1>
@@ -253,7 +251,7 @@ export default function GSAFlowV160() {
         </div>
       </header>
 
-      {/* CARDS VALORES SUPERIORES */}
+      {/* CARDS VALORES SUPERIORES (image_8a3dc2.png) */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] shadow-xl backdrop-blur-md"><p className="text-blue-500 text-[8px] font-black uppercase mb-1 tracking-widest font-sans">Entradas</p><h2 className="text-2xl font-black italic text-white">{formatarMoeda(totalReceitas)}</h2></div>
         <div className="bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] shadow-xl backdrop-blur-md"><p className="text-red-500 text-[8px] font-black uppercase mb-1 tracking-widest font-sans">Saídas</p><h2 className="text-2xl font-black italic text-white">{formatarMoeda(totalDespesas)}</h2></div>
@@ -261,7 +259,7 @@ export default function GSAFlowV160() {
         <div className="bg-zinc-900/10 border border-dashed border-white/10 p-6 rounded-[2.5rem] flex items-center justify-center text-center backdrop-blur-sm"><p className="text-zinc-700 text-[8px] font-black uppercase italic tracking-widest font-sans">Meta Alvo: <br/>{formatarMoeda(perfil?.meta_faturamento || 0)}</p></div>
       </div>
 
-      {/* TRIPLE COCKPIT INTEGRADO */}
+      {/* TRIPLE COCKPIT INTEGRADO (image_8a354b.png) */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         <div className="bg-zinc-900/40 border border-white/5 p-8 rounded-[2.5rem] h-[320px] flex flex-col items-center justify-between shadow-2xl relative overflow-hidden backdrop-blur-md">
             <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest font-sans">Battery Status</p>
@@ -315,7 +313,7 @@ export default function GSAFlowV160() {
         </div>
       </div>
 
-      {/* FORMULÁRIO DE LANÇAMENTO */}
+      {/* FORMULÁRIO DE LANÇAMENTO (image_8a354b.png) */}
       <div className={`max-w-7xl mx-auto p-6 rounded-[3rem] border backdrop-blur-sm mb-10 shadow-2xl transition-all duration-500 ${idEmEdicao ? 'bg-blue-600/5 border-blue-500/50' : 'bg-zinc-900/20 border-white/5'}`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
           <div className="flex bg-black/40 rounded-2xl p-1 h-12 border border-white/5">
@@ -338,7 +336,7 @@ export default function GSAFlowV160() {
         </div>
       </div>
 
-      {/* LISTAGEM DE LANÇAMENTOS */}
+      {/* LISTAGEM DE LANÇAMENTOS (image_8a354b.png) */}
       <div className="max-w-7xl mx-auto space-y-3 mb-20">
         {lancamentosDoMes.map((item) => {
           const eConfirmado = item.status === 'confirmado';

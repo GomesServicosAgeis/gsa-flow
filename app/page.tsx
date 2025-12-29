@@ -6,7 +6,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis
 // @ts-ignore
 import { Parser } from 'json2csv';
 
-export default function GSAFlowV135() {
+export default function GSAFlowV136() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
@@ -88,6 +88,9 @@ export default function GSAFlowV135() {
   const anoVis = dataVisualizacao.getFullYear();
   const hoje = new Date(); hoje.setHours(0,0,0,0);
 
+  // Lógica de alerta global (restaurada)
+  const itensAtrasadosGeral = lancamentos.filter(i => i.status !== 'confirmado' && new Date(i.data_vencimento + 'T00:00:00') < hoje);
+
   const lancamentosDoMes = lancamentos.filter(i => {
     const d = new Date(i.data_vencimento + 'T00:00:00');
     return d.getMonth() === mesVis && d.getFullYear() === anoVis;
@@ -124,6 +127,24 @@ export default function GSAFlowV135() {
   return (
     <div className="min-h-screen bg-[#06080a] text-zinc-300 p-4 sm:p-8 font-sans text-sm pb-24 overflow-x-hidden">
       
+      {/* 🔔 ALERTA GLOBAL RESTAURADO */}
+      {itensAtrasadosGeral.length > 0 && (
+        <div className="max-w-7xl mx-auto mb-6 bg-red-500/10 border border-red-500/30 p-4 rounded-3xl flex justify-between items-center gap-4 animate-in fade-in slide-in-from-top duration-500 backdrop-blur-md">
+           <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-red-500">
+                Atenção: Você possui {itensAtrasadosGeral.length} pendências fora do prazo.
+              </p>
+           </div>
+           <button 
+             onClick={() => setDataVisualizacao(new Date(itensAtrasadosGeral[0].data_vencimento + 'T00:00:00'))} 
+             className="bg-red-600 text-white px-4 py-2 rounded-2xl text-[8px] font-black uppercase tracking-widest hover:bg-red-500 transition-all shadow-lg shadow-red-600/20"
+           >
+             Resolver Agora
+           </button>
+        </div>
+      )}
+
       {/* HEADER */}
       <header className="flex flex-col sm:flex-row justify-between items-center mb-10 max-w-7xl mx-auto gap-4">
         <h1 className="text-3xl font-black text-blue-500 italic uppercase">GSA FLOW</h1>
@@ -146,23 +167,20 @@ export default function GSAFlowV135() {
 
       {/* TRIPLE COCKPIT */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        {/* BATERIA */}
         <div className="bg-zinc-900/40 border border-white/5 p-8 rounded-[2.5rem] h-[320px] flex flex-col items-center justify-between shadow-2xl">
             <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Battery Status</p>
             <div className="relative w-16 h-44 bg-black/60 rounded-2xl border border-white/10 overflow-hidden flex flex-col-reverse shadow-inner">
                 <div className="w-full bg-gradient-to-t from-blue-700 to-blue-400 transition-all duration-1000 shadow-[0_0_20px_rgba(59,130,246,0.5)]" style={{ height: `${Math.min(porcentagemMeta, 100)}%` }} />
                 <div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-xl font-black italic mix-blend-difference">{porcentagemMeta}%</span></div>
             </div>
-            <p className="text-blue-500/50 text-[8px] font-black uppercase tracking-widest italic">Target efficiency</p>
+            <p className="text-blue-500/50 text-[8px] font-black uppercase tracking-widest italic tracking-[0.2em]">Target efficiency</p>
         </div>
 
-        {/* TENDÊNCIA */}
         <div className="bg-zinc-900/40 border border-white/5 p-6 rounded-[2.5rem] h-[320px] shadow-2xl flex flex-col">
             <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest mb-6 text-center">Cashflow Trend</p>
             <div className="flex-1 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={dadosCincoMeses}>
-                        {/* TOOLTIP CORRIGIDO: BACKGROUND PRETO E LETRA BRANCA */}
                         <Tooltip 
                           cursor={{fill: 'rgba(255,255,255,0.03)'}} 
                           contentStyle={{ backgroundColor: '#000', border: '1px solid #333', borderRadius: '15px', color: '#fff' }} 
@@ -177,7 +195,6 @@ export default function GSAFlowV135() {
             </div>
         </div>
 
-        {/* PIZZA COM LEGENDA HTML E TOOLTIP FIX */}
         <div className="bg-zinc-900/40 border border-white/5 p-6 rounded-[2.5rem] h-[320px] shadow-2xl flex flex-col items-center overflow-hidden">
             <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest mb-4 text-center">Mix Categorias</p>
             <div className="flex-1 w-full relative">
@@ -188,14 +205,12 @@ export default function GSAFlowV135() {
                             <Pie data={gastosPorCategoria} innerRadius={45} outerRadius={60} paddingAngle={8} dataKey="value" stroke="none">
                                 {gastosPorCategoria.map((_, index) => <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />)}
                             </Pie>
-                            {/* TOOLTIP CORRIGIDO PARA O GRÁFICO DE PIZZA */}
                             <Tooltip 
                               contentStyle={{ backgroundColor: '#000', border: '1px solid #333', borderRadius: '15px', color: '#fff' }} 
                               itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
                             />
                         </PieChart>
                     </ResponsiveContainer>
-                    
                     <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 overflow-y-auto max-h-[80px] no-scrollbar">
                         {gastosPorCategoria.map((entry, index) => (
                             <div key={entry.name} className="flex items-center gap-2">
@@ -216,8 +231,8 @@ export default function GSAFlowV135() {
       <div className={`max-w-7xl mx-auto p-6 rounded-[3rem] border backdrop-blur-sm mb-10 shadow-2xl transition-all duration-500 ${idEmEdicao ? 'bg-blue-600/5 border-blue-500/50' : 'bg-zinc-900/20 border-white/5'}`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
           <div className="flex bg-black/40 rounded-2xl p-1 h-12 border border-white/5">
-            <button onClick={() => setNovoTipo('entrada')} className={`flex-1 rounded-xl text-[9px] font-black uppercase transition-all ${novoTipo === 'entrada' ? 'bg-blue-600 text-white shadow-lg' : 'text-zinc-600'}`}>Receita</button>
-            <button onClick={() => setNovoTipo('saida')} className={`flex-1 rounded-xl text-[9px] font-black uppercase transition-all ${novoTipo === 'saida' ? 'bg-red-600 text-white shadow-lg' : 'text-zinc-600'}`}>Saída</button>
+            <button onClick={() => setNovoTipo('entrada')} className={`flex-1 rounded-xl text-[9px] font-black uppercase ${novoTipo === 'entrada' ? 'bg-blue-600 text-white' : 'text-zinc-600'}`}>Receita</button>
+            <button onClick={() => setNovoTipo('saida')} className={`flex-1 rounded-xl text-[9px] font-black uppercase ${novoTipo === 'saida' ? 'bg-red-600 text-white' : 'text-zinc-600'}`}>Saída</button>
           </div>
           <input type="date" className="bg-black/40 p-3 h-12 rounded-2xl border border-white/5 text-xs text-zinc-400 outline-none" value={novaData} onChange={e => setNovaData(e.target.value)} />
           <select className="bg-black/40 p-3 h-12 rounded-2xl border border-white/5 text-xs text-zinc-400 font-black uppercase outline-none" value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)}>
@@ -231,7 +246,7 @@ export default function GSAFlowV135() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <input type="text" placeholder="Descrição" className="bg-black/40 p-4 h-14 rounded-2xl border border-white/5 text-xs text-white outline-none focus:border-blue-500/30" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
           <input type="number" placeholder="Valor" className="bg-black/40 p-4 h-14 rounded-2xl border border-white/5 text-xs text-white outline-none font-mono focus:border-blue-500/30" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
-          <button onClick={salvarLancamento} className="bg-blue-600 text-white font-black h-14 rounded-2xl text-[10px] uppercase tracking-widest shadow-lg shadow-blue-500/20 hover:scale-[1.01] transition-all italic">Lançar no Cockpit</button>
+          <button onClick={salvarLancamento} className="bg-blue-600 text-white font-black h-14 rounded-2xl text-[10px] uppercase tracking-widest shadow-lg shadow-blue-500/20 italic transition-all">Lançar no Cockpit</button>
         </div>
       </div>
 

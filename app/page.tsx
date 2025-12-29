@@ -6,7 +6,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Ba
 // @ts-ignore
 import { Parser } from 'json2csv';
 
-export default function GSAFlowV122() {
+export default function GSAFlowV123() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
@@ -70,9 +70,10 @@ export default function GSAFlowV122() {
 
   const salvarLancamento = async () => {
     if (!novaDescricao || !novoValor) return;
+    const valLimpo = Number(novoValor.toString().replace(',', '.'));
     const payload = { 
       descricao: novaDescricao, 
-      valor: Number(novoValor), 
+      valor: valLimpo, 
       tipo: novoTipo, 
       data_vencimento: novaData, 
       categoria: novaCategoria, 
@@ -95,7 +96,7 @@ export default function GSAFlowV122() {
     if (!feedback) return;
     setEnviandoFeedback(true);
     await supabase.from('feedbacks').insert({ user_id: user.id, user_email: user.email, mensagem: feedback });
-    alert("Obrigado pelo feedback!");
+    alert("Feedback enviado com sucesso!");
     setFeedback('');
     setEnviandoFeedback(false);
   }
@@ -118,7 +119,7 @@ export default function GSAFlowV122() {
   const isAdmin = user?.email === 'gomesservicosageis@gmail.com';
   const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira_em) < new Date();
 
-  // --- LÓGICA DE DADOS (AGORA INCLUINDO TODOS OS STATUS) ---
+  // --- LÓGICA DE DADOS REFORÇADA ---
   const mesVis = dataVisualizacao.getMonth();
   const anoVis = dataVisualizacao.getFullYear();
   const hoje = new Date(); hoje.setHours(0,0,0,0);
@@ -129,9 +130,9 @@ export default function GSAFlowV122() {
     const d = new Date(i.data_vencimento + 'T00:00:00');
     return d.getMonth() === mesVis && d.getFullYear() === anoVis;
   });
+
   const lancamentosExibidos = filtroCategoria === 'Todas' ? lancamentosDoMes : lancamentosDoMes.filter(i => i.categoria === filtroCategoria);
 
-  // Somamos tudo (agendado + confirmado) para o Dashboard ser preditivo
   const totalReceitas = lancamentosDoMes.filter(i => i.tipo === 'entrada').reduce((acc, i) => acc + (Number(i.valor) || 0), 0);
   const totalDespesas = lancamentosDoMes.filter(i => i.tipo === 'saida').reduce((acc, i) => acc + (Number(i.valor) || 0), 0);
   const lucroLiquido = totalReceitas - totalDespesas;
@@ -194,7 +195,7 @@ export default function GSAFlowV122() {
           <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2.5rem] w-full max-w-lg shadow-2xl">
             <h2 className="text-xl font-black text-blue-500 uppercase italic mb-6">Configurações</h2>
             <div className="space-y-4 mb-8 text-left">
-              <input type="text" placeholder="Nome da Empresa" className="w-full bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-white outline-none" value={editNomeEmpresa} onChange={e => setEditNomeEmpresa(e.target.value)} />
+              <input type="text" placeholder="Nome da Empresa" className="w-full bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-white outline-none" value={editNomeEmpresa} onChange={e => setEditNomeEmpresa(editNomeEmpresa)} />
               <input type="number" placeholder="Meta" className="w-full bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-white outline-none" value={editMeta} onChange={e => setEditMeta(Number(e.target.value))} />
               <div className="flex gap-2">
                 <input type="text" placeholder="Nova Categoria" className="flex-1 bg-zinc-950 p-2 rounded-xl border border-zinc-800 text-white outline-none" value={novaCatInput} onChange={e => setNovaCatInput(e.target.value)} />
@@ -243,9 +244,9 @@ export default function GSAFlowV122() {
       {abaAtiva === 'mes' ? (
         <>
           <div className="max-w-6xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-blue-600/10 border border-blue-500/20 p-6 rounded-[2rem] shadow-lg shadow-blue-600/5"><p className="text-blue-400 text-[8px] font-black uppercase tracking-widest">Entradas Totais</p><h2 className="text-2xl font-black italic">R$ {totalReceitas.toLocaleString('pt-BR')}</h2></div>
-            <div className="bg-red-600/10 border border-red-500/20 p-6 rounded-[2rem] shadow-lg shadow-red-600/5"><p className="text-red-400 text-[8px] font-black uppercase tracking-widest">Saídas Totais</p><h2 className="text-2xl font-black italic">R$ {totalDespesas.toLocaleString('pt-BR')}</h2></div>
-            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem] shadow-xl"><p className="text-zinc-500 text-[8px] font-black uppercase tracking-widest">Saldo Previsto</p><h2 className={`text-2xl font-black italic ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>R$ {lucroLiquido.toLocaleString('pt-BR')}</h2></div>
+            <div className="bg-blue-600/10 border border-blue-500/20 p-6 rounded-[2rem] shadow-lg shadow-blue-600/5"><p className="text-blue-400 text-[8px] font-black uppercase tracking-widest">Entradas</p><h2 className="text-2xl font-black italic">R$ {totalReceitas.toLocaleString('pt-BR')}</h2></div>
+            <div className="bg-red-600/10 border border-red-500/20 p-6 rounded-[2rem] shadow-lg shadow-red-600/5"><p className="text-red-400 text-[8px] font-black uppercase tracking-widest">Saídas</p><h2 className="text-2xl font-black italic">R$ {totalDespesas.toLocaleString('pt-BR')}</h2></div>
+            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem] shadow-xl"><p className="text-zinc-500 text-[8px] font-black uppercase tracking-widest">Saldo</p><h2 className={`text-2xl font-black italic ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>R$ {lucroLiquido.toLocaleString('pt-BR')}</h2></div>
             <div className="bg-zinc-900 border border-zinc-800/50 p-6 rounded-[2rem] border-dashed text-center shadow-xl"><p className="text-zinc-600 text-[8px] font-black uppercase tracking-widest">Meta</p><h2 className="text-2xl font-black italic text-zinc-400">R$ {perfil.meta_faturamento.toLocaleString('pt-BR')}</h2></div>
           </div>
 
@@ -259,16 +260,25 @@ export default function GSAFlowV122() {
                     <div className="h-full bg-blue-600 transition-all duration-1000 shadow-[0_0_10px_rgba(37,99,235,0.4)]" style={{ width: `${Math.min((totalReceitas / perfil.meta_faturamento) * 100, 100)}%` }} />
                 </div>
             </div>
-            <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[300px] w-full shadow-2xl">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={gastosPorCategoria} innerRadius={45} outerRadius={60} paddingAngle={5} dataKey="value" stroke="none">
-                    {gastosPorCategoria.map((_, index) => <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />)}
-                  </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', fontSize: '10px' }} />
-                  <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
-                </PieChart>
-              </ResponsiveContainer>
+            
+            {/* CONTAINER DO GRÁFICO COM AVISO DE DADOS VAZIOS */}
+            <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[300px] w-full shadow-2xl flex items-center justify-center">
+              {gastosPorCategoria.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={gastosPorCategoria} innerRadius={45} outerRadius={60} paddingAngle={5} dataKey="value" stroke="none">
+                      {gastosPorCategoria.map((_, index) => <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />)}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', fontSize: '10px' }} />
+                    <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="text-center">
+                  <p className="text-zinc-600 text-[8px] font-black uppercase tracking-[0.2em]">Sem despesas no mês</p>
+                  <p className="text-[10px] text-zinc-800 italic mt-1">Lançamentos de entrada não geram pizza.</p>
+                </div>
+              )}
             </div>
           </div>
         </>
@@ -292,55 +302,44 @@ export default function GSAFlowV122() {
       <div className={`max-w-6xl mx-auto p-6 rounded-[2.5rem] border mb-10 transition-all shadow-2xl ${idEmEdicao ? 'bg-blue-600/10 border-blue-500' : 'bg-zinc-900/40 border-zinc-800/50'}`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           <div className="flex bg-zinc-950 rounded-xl p-1 h-12">
-            <button onClick={() => setNovoTipo('entrada')} className={`flex-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${novoTipo === 'entrada' ? 'bg-blue-600' : 'text-zinc-600'}`}>Receita</button>
-            <button onClick={() => setNovoTipo('saida')} className={`flex-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${novoTipo === 'saida' ? 'bg-red-600' : 'text-zinc-600'}`}>Saída</button>
+            <button onClick={() => setNovoTipo('entrada')} className={`flex-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${novoTipo === 'entrada' ? 'bg-blue-600 text-white' : 'text-zinc-600'}`}>Receita</button>
+            <button onClick={() => setNovoTipo('saida')} className={`flex-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${novoTipo === 'saida' ? 'bg-red-600 text-white' : 'text-zinc-600'}`}>Saída</button>
           </div>
-          <input type="date" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none focus:border-blue-500" value={novaData} onChange={e => setNovaData(e.target.value)} />
-          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white font-black uppercase outline-none focus:border-blue-500" value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)}>
+          <input type="date" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novaData} onChange={e => setNovaData(e.target.value)} />
+          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white font-black" value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)}>
             {perfil.categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
           </select>
-          <input type="text" placeholder="Link do Comprovante" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none focus:border-blue-500" value={novoComprovante} onChange={e => setNovoComprovante(e.target.value)} />
+          <input type="text" placeholder="Link do Comprovante" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novoComprovante} onChange={e => setNovoComprovante(e.target.value)} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          <input type="text" placeholder="Descrição do Lançamento" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none focus:border-blue-500" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
-          <input type="number" placeholder="Valor R$" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white font-mono outline-none focus:border-blue-500" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
-          <button onClick={salvarLancamento} className="bg-blue-600 hover:bg-blue-500 text-white font-black h-12 rounded-xl text-[9px] uppercase tracking-widest shadow-lg shadow-blue-600/20 transition-all">{idEmEdicao ? 'Salvar Alteração' : 'Lançar no Fluxo'}</button>
+          <input type="text" placeholder="Descrição" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
+          <input type="number" placeholder="Valor" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
+          <button onClick={salvarLancamento} className="bg-blue-600 text-white font-black h-12 rounded-xl text-[9px] uppercase tracking-widest">{idEmEdicao ? 'Salvar' : 'Lançar'}</button>
         </div>
       </div>
 
       {/* LISTAGEM */}
       <div className="max-w-6xl mx-auto space-y-2 mb-10">
-        <div className="flex justify-between items-center mb-6 px-4">
-            <div className="flex gap-2 overflow-x-auto no-scrollbar">
-              <button onClick={() => setFiltroCategoria('Todas')} className={`px-4 py-2 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all ${filtroCategoria === 'Todas' ? 'bg-white text-black' : 'border-zinc-800 text-zinc-500'}`}>Todas</button>
-              {perfil.categorias.map(cat => (
-                <button key={cat} onClick={() => setFiltroCategoria(cat)} className={`whitespace-nowrap px-4 py-2 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all ${filtroCategoria === cat ? 'bg-blue-600 text-white' : 'border-zinc-800 text-zinc-500'}`}>{cat}</button>
-              ))}
-            </div>
-            <button onClick={exportarCSV} className="text-zinc-500 hover:text-white text-xl p-2 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl transition-all">📥</button>
-        </div>
-
         {lancamentosExibidos.map((item) => {
           const eConfirmado = item.status === 'confirmado';
           const estaAtrasado = !eConfirmado && new Date(item.data_vencimento + 'T00:00:00') < hoje;
           return (
-            <div key={item.id} className={`flex justify-between items-center p-5 rounded-[1.8rem] border transition-all shadow-sm ${eConfirmado ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60' : estaAtrasado ? 'bg-red-500/10 border-red-500/40 animate-pulse-slow' : 'bg-zinc-900/10 border-zinc-800/40 hover:bg-zinc-900/20'}`}>
+            <div key={item.id} className={`flex justify-between items-center p-5 rounded-[1.8rem] border transition-all ${eConfirmado ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60' : estaAtrasado ? 'bg-red-500/10 border-red-500/40 animate-pulse-slow' : 'bg-zinc-900/10 border-zinc-800/40 hover:bg-zinc-900/20'}`}>
               <div className="flex items-center gap-4 text-left">
-                <span className={`text-[9px] font-mono px-3 py-1.5 rounded-lg font-bold ${estaAtrasado ? 'bg-red-500 text-white' : 'bg-zinc-800/50 text-zinc-500'}`}>{new Date(item.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</span>
+                <span className={`text-[9px] font-mono px-3 py-1.5 rounded-lg ${estaAtrasado ? 'bg-red-500 text-white' : 'bg-zinc-800/50 text-zinc-500'}`}>{new Date(item.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</span>
                 <div>
                   <div className="flex items-center gap-2">
                     <p className={`font-bold truncate max-w-[200px] ${eConfirmado ? 'line-through text-zinc-600' : 'text-zinc-200'}`}>{item.descricao}</p>
-                    {item.comprovante_url && <a href={item.comprovante_url} target="_blank" className="text-[10px] hover:scale-110 transition-transform">📎</a>}
                   </div>
-                  <p className="text-[8px] font-black uppercase text-zinc-600 tracking-[0.2em]">{item.categoria}</p>
+                  <p className="text-[8px] font-black uppercase text-zinc-600 tracking-widest">{item.categoria}</p>
                 </div>
               </div>
               <div className="flex items-center gap-6">
-                <span className={`font-black text-lg tracking-tighter ${eConfirmado ? 'text-zinc-700' : item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>{item.tipo === 'entrada' ? '+' : '-'} R$ {Number(item.valor).toLocaleString('pt-BR')}</span>
+                <span className={`font-black text-lg tracking-tighter ${eConfirmado ? 'text-zinc-700' : item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>R$ {Number(item.valor).toLocaleString('pt-BR')}</span>
                 <div className="flex gap-2">
-                  {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarLancamentos(); }} className="bg-white text-black text-[8px] font-black px-4 py-2 rounded-full h-8 uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all">Pagar</button>}
-                  <button onClick={() => { setIdEmEdicao(item.id); setNovaDescricao(item.descricao); setNovoValor(item.valor.toString()); setNovaData(item.data_vencimento); setNovoTipo(item.tipo); setNovaCategoria(item.categoria); setNovoComprovante(item.comprovante_url || ''); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-zinc-600 hover:text-white p-2 transition-colors">✏️</button>
-                  <button onClick={async () => { if(confirm('Remover do fluxo?')) { await supabase.from('lancamentos').delete().eq('id', item.id); carregarLancamentos(); } }} className="text-zinc-800 hover:text-red-500 p-2 transition-colors">🗑️</button>
+                  {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarLancamentos(); }} className="bg-white text-black text-[8px] font-black px-4 py-2 rounded-full h-8 uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">Pagar</button>}
+                  <button onClick={() => { setIdEmEdicao(item.id); setNovaDescricao(item.descricao); setNovoValor(item.valor.toString()); setNovaData(item.data_vencimento); setNovoTipo(item.tipo); setNovaCategoria(item.categoria); setNovoComprovante(item.comprovante_url || ''); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-zinc-600 p-2">✏️</button>
+                  <button onClick={async () => { if(confirm('Remover?')) { await supabase.from('lancamentos').delete().eq('id', item.id); carregarLancamentos(); } }} className="text-zinc-800 p-2">🗑️</button>
                 </div>
               </div>
             </div>
@@ -348,13 +347,12 @@ export default function GSAFlowV122() {
         })}
       </div>
 
-      {/* 💬 FEEDBACK DISCRETO */}
       <footer className="max-w-6xl mx-auto border-t border-zinc-900 pt-10 mt-10">
         <div className="flex flex-col sm:flex-row items-center gap-4 bg-zinc-900/30 p-4 rounded-3xl border border-zinc-800/50 shadow-inner">
-            <input className="flex-1 bg-transparent px-4 py-2 text-[11px] text-zinc-400 outline-none placeholder:text-zinc-700" placeholder="O que podemos melhorar no cockpit da GSA FLOW?" value={feedback} onChange={(e) => setFeedback(e.target.value)} />
-            <button onClick={enviarFeedback} className="bg-zinc-800 hover:bg-blue-600 text-white px-6 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all shadow-md">{enviandoFeedback ? '...' : 'Enviar Sugestão'}</button>
+            <input className="flex-1 bg-transparent px-4 py-2 text-[11px] text-zinc-400 outline-none" placeholder="O que podemos melhorar?" value={feedback} onChange={(e) => setFeedback(e.target.value)} />
+            <button onClick={enviarFeedback} className="bg-zinc-800 hover:bg-blue-600 text-white px-6 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all">{enviandoFeedback ? '...' : 'Enviar'}</button>
         </div>
-        <p className="text-[8px] text-center text-zinc-700 mt-6 uppercase font-bold tracking-[0.5em]">Gomes Serviços Ágeis © 2025</p>
+        <p className="text-[8px] text-center text-zinc-700 mt-6 uppercase tracking-[0.4em]">Gomes Serviços Ágeis © 2025</p>
       </footer>
 
       <style jsx global>{`

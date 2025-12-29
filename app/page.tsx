@@ -67,12 +67,35 @@ export default function GSAFlowRefinado() {
   }
 
   const salvarLancamento = async () => {
-    if (!novaDescricao || !novoValor) return;
-    const payload = { descricao: novaDescricao, valor: Number(novoValor), tipo: novoTipo, data_vencimento: novaData, categoria: novaCategoria, user_id: user.id, comprovante_url: novoComprovante };
-    if (idEmEdicao) await supabase.from('lancamentos').update(payload).eq('id', idEmEdicao);
-    else await supabase.from('lancamentos').insert(payload);
-    setNovaDescricao(''); setNovoValor(''); setNovoComprovante(''); setIdEmEdicao(null); carregarLancamentos();
+  if (!novaDescricao || !novoValor) return;
+
+  // Montamos o objeto com TODOS os campos que o banco espera
+  const payload = { 
+    descricao: novaDescricao, 
+    valor: Number(novoValor), 
+    tipo: novoTipo, 
+    data_vencimento: novaData, 
+    categoria: novaCategoria, 
+    user_id: user.id, 
+    comprovante_url: novoComprovante || null, // Se estiver vazio, manda null de forma tratada
+    status: 'agendado' // Forçamos o envio aqui também
   };
+
+  const { error } = idEmEdicao 
+    ? await supabase.from('lancamentos').update(payload).eq('id', idEmEdicao)
+    : await supabase.from('lancamentos').insert([payload]); // Enviamos como array para garantir
+
+  if (error) {
+    alert("Erro detalhado: " + error.message);
+    console.log(error);
+  } else {
+    // Limpar campos após sucesso
+    setNovaDescricao(''); 
+    setNovoValor(''); 
+    setIdEmEdicao(null); 
+    carregarLancamentos();
+  }
+};
 
   async function atualizarPerfil() {
     await supabase.from('perfis_usuarios').update({ nome_empresa: editNomeEmpresa, meta_faturamento: editMeta, categorias: perfil.categorias }).eq('id', user.id);

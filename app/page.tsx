@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
 
-export default function GSAFlowV156() {
+export default function GSAFlowV157() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [perfil, setPerfil] = useState<any>(null);
@@ -28,7 +28,7 @@ export default function GSAFlowV156() {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        // Busca o perfil com prioridade máxima
+        // BUSCA PERFIL COM PRIORIDADE ABSOLUTA
         const { data: prof } = await supabase.from('perfis_usuarios').select('*').eq('id', session.user.id).single();
         if (prof) {
           setPerfil(prof);
@@ -47,7 +47,7 @@ export default function GSAFlowV156() {
     if (data) setLancamentos(data.sort((a,b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime()));
   }
 
-  // --- LÓGICA DE SEGURANÇA BLOQUEANTE ---
+  // --- LÓGICA DE SEGURANÇA REFORÇADA (image_8aa240.png fix) ---
   const isAdmin = user?.email === 'gomesservicosageis@gmail.com';
   const hoje = new Date();
   const dataExpiracao = perfil?.expira_em ? new Date(perfil.expira_em) : null;
@@ -55,7 +55,7 @@ export default function GSAFlowV156() {
   // Condição de Bloqueio: Não é admin E (perfil carregado E data vencida)
   const assinaturaVencida = user && !isAdmin && perfil && (dataExpiracao && hoje > dataExpiracao);
 
-  // LOG DE AUDITORIA CRÍTICO
+  // LOG DE AUDITORIA CRÍTICO PARA O SEU TESTE
   console.log("🛡️ SEGURANÇA GSA:", {
     logado: !!user,
     admin: isAdmin,
@@ -63,24 +63,25 @@ export default function GSAFlowV156() {
     bloquear: assinaturaVencida
   });
 
-  // 1. ESTADO DE CARREGAMENTO
+  // 1. ESTADO DE CARREGAMENTO INICIAL
   if (loading) return (
     <div className="min-h-screen bg-[#06080a] flex items-center justify-center text-blue-500 font-black animate-pulse italic">
       GSA FLOW: VALIDANDO ACESSO...
     </div>
   );
 
-  // 2. TELA DE LOGIN
+  // 2. TELA DE LOGIN (Se não houver sessão)
   if (!user) return (
     <div className="min-h-screen bg-[#06080a] flex items-center justify-center p-6 text-white text-center font-sans">
-      <div className="bg-zinc-900 border border-white/5 p-10 rounded-[3rem] w-full max-w-md shadow-2xl">
-        <h1 className="text-4xl font-black text-blue-500 mb-2 italic uppercase">GSA FLOW</h1>
-        <form onSubmit={async (e) => { e.preventDefault(); const { error } = isSignUp ? await supabase.auth.signUp({email, password}) : await supabase.auth.signInWithPassword({email, password}); if (error) alert(error.message); else window.location.reload(); }} className="space-y-4 mt-10">
+      <div className="bg-zinc-900 border border-white/5 p-10 rounded-[3rem] w-full max-w-md shadow-2xl backdrop-blur-xl">
+        <h1 className="text-4xl font-black text-blue-500 mb-2 italic uppercase tracking-tighter leading-none">GSA FLOW</h1>
+        <p className="text-zinc-600 text-[9px] font-bold uppercase mb-10 tracking-[0.4em]">Business Intelligence</p>
+        <form onSubmit={async (e) => { e.preventDefault(); const { error } = isSignUp ? await supabase.auth.signUp({email, password}) : await supabase.auth.signInWithPassword({email, password}); if (error) alert(error.message); else window.location.reload(); }} className="space-y-4 text-left">
           <input type="email" placeholder="E-mail" className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white outline-none focus:border-blue-500" value={email} onChange={e => setEmail(e.target.value)} required />
           <input type="password" placeholder="Senha" className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white outline-none focus:border-blue-500" value={password} onChange={e => setPassword(e.target.value)} required />
-          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-2xl uppercase text-xs tracking-widest shadow-lg shadow-blue-600/20">Acessar Cockpit</button>
+          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-2xl uppercase text-xs tracking-widest shadow-lg shadow-blue-600/20">{isSignUp ? 'Criar Conta' : 'Acessar Cockpit'}</button>
         </form>
-        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full mt-8 text-zinc-600 text-[9px] font-black uppercase underline">{isSignUp ? 'Voltar para Login' : 'Solicitar Acesso'}</button>
+        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full mt-8 text-zinc-600 text-[9px] font-black uppercase tracking-widest">{isSignUp ? 'Já tem conta? Login' : 'Novo por aqui? Criar Acesso'}</button>
       </div>
     </div>
   );
@@ -88,26 +89,28 @@ export default function GSAFlowV156() {
   // 3. TELA DE TRAVA (Garantido que só aparece se vencer)
   if (assinaturaVencida) return (
     <div className="min-h-screen bg-[#06080a] flex items-center justify-center p-6 text-white text-center font-sans overflow-hidden">
-      <div className="bg-zinc-900 border border-red-500/40 p-10 rounded-[3.5rem] w-full max-w-md shadow-[0_0_60px_rgba(239,68,68,0.2)] backdrop-blur-xl relative z-10">
+      <div className="bg-zinc-900 border border-red-500/40 p-10 rounded-[3.5rem] w-full max-w-md shadow-[0_0_60px_rgba(239,68,68,0.2)] backdrop-blur-xl relative z-10 animate-in zoom-in duration-300">
         <div className="text-7xl mb-6">🔒</div>
-        <h2 className="text-3xl font-black text-red-500 uppercase italic mb-4">Assinatura Expirada</h2>
+        <h2 className="text-3xl font-black text-red-500 uppercase italic mb-4">Acesso Expirado</h2>
         <p className="text-zinc-500 text-sm mb-10 leading-relaxed italic font-medium">
           O Cockpit detectou o fim da sua licença em {dataExpiracao?.toLocaleDateString('pt-BR')}.
         </p>
-        <a href="https://www.mercadopago.com.br" className="block bg-blue-600 hover:bg-blue-500 p-5 rounded-3xl font-black uppercase text-[11px] tracking-widest shadow-lg transition-all active:scale-95">Renovar Agora</a>
-        <button onClick={() => window.location.reload()} className="mt-6 text-zinc-600 text-[10px] font-black uppercase underline block w-full tracking-widest">Já realizei o pagamento</button>
+        <div className="space-y-4">
+          <a href="https://www.mercadopago.com.br" className="block bg-blue-600 hover:bg-blue-500 p-5 rounded-3xl font-black uppercase text-[11px] tracking-widest shadow-lg transition-all active:scale-95 transform hover:scale-105">Renovar Agora</a>
+          <button onClick={() => window.location.reload()} className="mt-6 text-zinc-600 text-[10px] font-black uppercase underline block w-full tracking-widest hover:text-white transition-colors">Confirmar Pagamento</button>
+        </div>
       </div>
     </div>
   );
 
-  // 4. BLOQUEIO DE SEGURANÇA ENQUANTO PERFIL NÃO CHEGA
+  // 4. BARREIRA DE SINCRONISMO (Impede o cockpit de aparecer antes dos dados)
   if (!perfil && !isAdmin) return (
     <div className="min-h-screen bg-[#06080a] flex items-center justify-center text-blue-500 font-black animate-pulse italic">
       GSA FLOW: SINCRONIZANDO PERFIL...
     </div>
   );
 
-  // 5. COCKPIT (Apenas se passar por todas as travas acima)
+  // 5. COCKPIT PRINCIPAL
   const mesVis = dataVisualizacao.getMonth();
   const anoVis = dataVisualizacao.getFullYear();
   const lancamentosDoMes = lancamentos.filter(i => {
@@ -122,23 +125,26 @@ export default function GSAFlowV156() {
   return (
     <div className="min-h-screen bg-[#06080a] text-zinc-300 p-4 sm:p-8 font-sans text-sm pb-24 overflow-x-hidden">
         <header className="flex justify-between items-center mb-10 max-w-7xl mx-auto">
-            <h1 className="text-3xl font-black text-blue-500 italic uppercase leading-none tracking-tighter">GSA FLOW</h1>
+            <div>
+              <h1 className="text-3xl font-black text-blue-500 italic uppercase leading-none tracking-tighter">GSA FLOW</h1>
+              <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-[0.4em] mt-1 italic">{perfil?.nome_empresa}</p>
+            </div>
             <div className="flex items-center gap-6">
-                <button onClick={() => setMostrarConfig(true)} className="text-lg hover:rotate-90 transition-all duration-500">⚙️</button>
-                <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-[9px] font-black uppercase text-zinc-600 hover:text-red-400 transition-colors">Sair</button>
+                <button onClick={() => setMostrarConfig(true)} className="text-lg hover:rotate-90 transition-all duration-500 cursor-pointer">⚙️</button>
+                <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-[9px] font-black uppercase text-zinc-600 hover:text-red-500 transition-colors">Sair</button>
             </div>
         </header>
 
         <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10">
-            <div className="bg-zinc-900/40 p-8 rounded-[2.5rem] border border-white/5 shadow-xl backdrop-blur-md">
+            <div className="bg-zinc-900/30 border border-white/5 p-8 rounded-[2.5rem] shadow-xl backdrop-blur-md">
                 <p className="text-blue-500 text-[9px] font-black uppercase mb-1 tracking-widest">Entradas</p>
                 <h2 className="text-3xl font-black italic text-white">{formatarMoeda(totalReceitas)}</h2>
             </div>
-            <div className="bg-zinc-900/40 p-8 rounded-[2.5rem] border border-white/5 shadow-xl backdrop-blur-md">
+            <div className="bg-zinc-900/30 border border-white/5 p-8 rounded-[2.5rem] shadow-xl backdrop-blur-md">
                 <p className="text-red-500 text-[9px] font-black uppercase mb-1 tracking-widest">Saídas</p>
                 <h2 className="text-3xl font-black italic text-white">{formatarMoeda(totalDespesas)}</h2>
             </div>
-            <div className="bg-zinc-900/40 p-8 rounded-[2.5rem] border border-white/5 shadow-xl backdrop-blur-md">
+            <div className="bg-zinc-900/30 border border-white/5 p-8 rounded-[2.5rem] shadow-xl backdrop-blur-md">
                 <p className="text-zinc-500 text-[9px] font-black uppercase mb-1 tracking-widest">Saldo Atual</p>
                 <h2 className={`text-3xl font-black italic ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>{formatarMoeda(lucroLiquido)}</h2>
             </div>

@@ -4,27 +4,20 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
 
-export default function GSAFlowV155() {
+export default function GSAFlowV156() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [perfil, setPerfil] = useState<any>(null);
   const [lancamentos, setLancamentos] = useState<any[]>([]);
 
-  // Estados de Login e Config
+  // Estados de Interface
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [mostrarConfig, setMostrarConfig] = useState(false);
   const [editNomeEmpresa, setEditNomeEmpresa] = useState('');
   const [editMeta, setEditMeta] = useState(0);
-
-  // Estados de Interface
   const [dataVisualizacao, setDataVisualizacao] = useState(new Date());
-  const [novaDescricao, setNovaDescricao] = useState('');
-  const [novoValor, setNovoValor] = useState('');
-  const [novaData, setNovaData] = useState(new Date().toISOString().split('T')[0]);
-  const [novoTipo, setNovoTipo] = useState('entrada');
-  const [novaCategoria, setNovaCategoria] = useState('Freelancer');
 
   const CORES = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899'];
   const formatarMoeda = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -35,7 +28,7 @@ export default function GSAFlowV155() {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        // Busca o perfil com prioridade máxima antes de qualquer renderização
+        // Busca o perfil com prioridade máxima
         const { data: prof } = await supabase.from('perfis_usuarios').select('*').eq('id', session.user.id).single();
         if (prof) {
           setPerfil(prof);
@@ -62,7 +55,7 @@ export default function GSAFlowV155() {
   // Condição de Bloqueio: Não é admin E (perfil carregado E data vencida)
   const assinaturaVencida = user && !isAdmin && perfil && (dataExpiracao && hoje > dataExpiracao);
 
-  // LOG DE AUDITORIA PARA O SEU TESTE
+  // LOG DE AUDITORIA CRÍTICO
   console.log("🛡️ SEGURANÇA GSA:", {
     logado: !!user,
     admin: isAdmin,
@@ -70,8 +63,8 @@ export default function GSAFlowV155() {
     bloquear: assinaturaVencida
   });
 
-  // 1. CARREGAMENTO (Não mostra nada até ter certeza do estado)
-  if (loading || (user && !perfil && !isAdmin)) return (
+  // 1. ESTADO DE CARREGAMENTO
+  if (loading) return (
     <div className="min-h-screen bg-[#06080a] flex items-center justify-center text-blue-500 font-black animate-pulse italic">
       GSA FLOW: VALIDANDO ACESSO...
     </div>
@@ -85,9 +78,9 @@ export default function GSAFlowV155() {
         <form onSubmit={async (e) => { e.preventDefault(); const { error } = isSignUp ? await supabase.auth.signUp({email, password}) : await supabase.auth.signInWithPassword({email, password}); if (error) alert(error.message); else window.location.reload(); }} className="space-y-4 mt-10">
           <input type="email" placeholder="E-mail" className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white outline-none focus:border-blue-500" value={email} onChange={e => setEmail(e.target.value)} required />
           <input type="password" placeholder="Senha" className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white outline-none focus:border-blue-500" value={password} onChange={e => setPassword(e.target.value)} required />
-          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-2xl uppercase text-xs tracking-widest">Acessar Cockpit</button>
+          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-2xl uppercase text-xs tracking-widest shadow-lg shadow-blue-600/20">Acessar Cockpit</button>
         </form>
-        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full mt-8 text-zinc-600 text-[9px] font-black uppercase underline">{isSignUp ? 'Login' : 'Solicitar Acesso'}</button>
+        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full mt-8 text-zinc-600 text-[9px] font-black uppercase underline">{isSignUp ? 'Voltar para Login' : 'Solicitar Acesso'}</button>
       </div>
     </div>
   );
@@ -99,7 +92,7 @@ export default function GSAFlowV155() {
         <div className="text-7xl mb-6">🔒</div>
         <h2 className="text-3xl font-black text-red-500 uppercase italic mb-4">Assinatura Expirada</h2>
         <p className="text-zinc-500 text-sm mb-10 leading-relaxed italic font-medium">
-          O Cockpit <strong>{perfil?.nome_empresa}</strong> detectou o fim da sua licença em {dataExpiracao?.toLocaleDateString('pt-BR')}.
+          O Cockpit detectou o fim da sua licença em {dataExpiracao?.toLocaleDateString('pt-BR')}.
         </p>
         <a href="https://www.mercadopago.com.br" className="block bg-blue-600 hover:bg-blue-500 p-5 rounded-3xl font-black uppercase text-[11px] tracking-widest shadow-lg transition-all active:scale-95">Renovar Agora</a>
         <button onClick={() => window.location.reload()} className="mt-6 text-zinc-600 text-[10px] font-black uppercase underline block w-full tracking-widest">Já realizei o pagamento</button>
@@ -107,7 +100,14 @@ export default function GSAFlowV155() {
     </div>
   );
 
-  // 4. COCKPIT (Apenas se passar por todas as travas acima)
+  // 4. BLOQUEIO DE SEGURANÇA ENQUANTO PERFIL NÃO CHEGA
+  if (!perfil && !isAdmin) return (
+    <div className="min-h-screen bg-[#06080a] flex items-center justify-center text-blue-500 font-black animate-pulse italic">
+      GSA FLOW: SINCRONIZANDO PERFIL...
+    </div>
+  );
+
+  // 5. COCKPIT (Apenas se passar por todas as travas acima)
   const mesVis = dataVisualizacao.getMonth();
   const anoVis = dataVisualizacao.getFullYear();
   const lancamentosDoMes = lancamentos.filter(i => {
@@ -122,10 +122,10 @@ export default function GSAFlowV155() {
   return (
     <div className="min-h-screen bg-[#06080a] text-zinc-300 p-4 sm:p-8 font-sans text-sm pb-24 overflow-x-hidden">
         <header className="flex justify-between items-center mb-10 max-w-7xl mx-auto">
-            <h1 className="text-3xl font-black text-blue-500 italic uppercase leading-none tracking-tighter tracking-tighter">GSA FLOW</h1>
+            <h1 className="text-3xl font-black text-blue-500 italic uppercase leading-none tracking-tighter">GSA FLOW</h1>
             <div className="flex items-center gap-6">
                 <button onClick={() => setMostrarConfig(true)} className="text-lg hover:rotate-90 transition-all duration-500">⚙️</button>
-                <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-[9px] font-black uppercase text-zinc-600 hover:text-red-500 transition-colors">Sair</button>
+                <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-[9px] font-black uppercase text-zinc-600 hover:text-red-400 transition-colors">Sair</button>
             </div>
         </header>
 
@@ -146,7 +146,7 @@ export default function GSAFlowV155() {
 
         <div className="max-w-7xl mx-auto p-12 bg-zinc-900/20 rounded-[4rem] border border-white/5 border-dashed text-center">
              <p className="text-zinc-600 text-[11px] font-black uppercase tracking-[0.6em] italic">Cockpit de Inteligência Ativo</p>
-             <p className="text-blue-500/40 text-[9px] mt-2 font-black uppercase">GSA Business Intelligence - Nível Total</p>
+             <p className="text-blue-500/40 text-[9px] mt-2 font-black uppercase tracking-widest">GSA Business Intelligence - Nível Total</p>
         </div>
     </div>
   );

@@ -6,7 +6,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Ba
 // @ts-ignore
 import { Parser } from 'json2csv';
 
-export default function GSAFlowRefinado() {
+export default function GSAFlowV121() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
@@ -36,6 +36,8 @@ export default function GSAFlowRefinado() {
   const [editNomeEmpresa, setEditNomeEmpresa] = useState('');
   const [editMeta, setEditMeta] = useState(0);
   const [novaCatInput, setNovaCatInput] = useState('');
+
+  const CORES = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899'];
 
   useEffect(() => {
     const sessionInit = async () => {
@@ -67,35 +69,21 @@ export default function GSAFlowRefinado() {
   }
 
   const salvarLancamento = async () => {
-  if (!novaDescricao || !novoValor) return;
-
-  // Montamos o objeto com TODOS os campos que o banco espera
-  const payload = { 
-    descricao: novaDescricao, 
-    valor: Number(novoValor), 
-    tipo: novoTipo, 
-    data_vencimento: novaData, 
-    categoria: novaCategoria, 
-    user_id: user.id, 
-    comprovante_url: novoComprovante || null, // Se estiver vazio, manda null de forma tratada
-    status: 'agendado' // Forçamos o envio aqui também
+    if (!novaDescricao || !novoValor) return;
+    const payload = { 
+      descricao: novaDescricao, 
+      valor: Number(novoValor), 
+      tipo: novoTipo, 
+      data_vencimento: novaData, 
+      categoria: novaCategoria, 
+      user_id: user.id, 
+      comprovante_url: novoComprovante || null,
+      status: 'agendado'
+    };
+    if (idEmEdicao) await supabase.from('lancamentos').update(payload).eq('id', idEmEdicao);
+    else await supabase.from('lancamentos').insert(payload);
+    setNovaDescricao(''); setNovoValor(''); setIdEmEdicao(null); setNovoComprovante(''); carregarLancamentos();
   };
-
-  const { error } = idEmEdicao 
-    ? await supabase.from('lancamentos').update(payload).eq('id', idEmEdicao)
-    : await supabase.from('lancamentos').insert([payload]); // Enviamos como array para garantir
-
-  if (error) {
-    alert("Erro detalhado: " + error.message);
-    console.log(error);
-  } else {
-    // Limpar campos após sucesso
-    setNovaDescricao(''); 
-    setNovoValor(''); 
-    setIdEmEdicao(null); 
-    carregarLancamentos();
-  }
-};
 
   async function atualizarPerfil() {
     await supabase.from('perfis_usuarios').update({ nome_empresa: editNomeEmpresa, meta_faturamento: editMeta, categorias: perfil.categorias }).eq('id', user.id);
@@ -130,35 +118,38 @@ export default function GSAFlowRefinado() {
   const isAdmin = user?.email === 'gomesservicosageis@gmail.com';
   const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira_em) < new Date();
 
+  // --- LÓGICA DE DADOS REFORÇADA PARA OS GRÁFICOS ---
   const mesVis = dataVisualizacao.getMonth();
   const anoVis = dataVisualizacao.getFullYear();
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   const itensAtrasadosGeral = lancamentos.filter(i => i.status !== 'confirmado' && new Date(i.data_vencimento + 'T00:00:00') < hoje);
+
   const lancamentosDoMes = lancamentos.filter(i => {
     const d = new Date(i.data_vencimento + 'T00:00:00');
     return d.getMonth() === mesVis && d.getFullYear() === anoVis;
   });
   const lancamentosExibidos = filtroCategoria === 'Todas' ? lancamentosDoMes : lancamentosDoMes.filter(i => i.categoria === filtroCategoria);
 
-  const totalReceitas = lancamentosDoMes.filter(i => i.tipo === 'entrada').reduce((acc, i) => acc + Number(i.valor), 0);
-  const totalDespesas = lancamentosDoMes.filter(i => i.tipo === 'saida').reduce((acc, i) => acc + Number(i.valor), 0);
+  const totalReceitas = lancamentosDoMes.filter(i => i.tipo === 'entrada').reduce((acc, i) => acc + (Number(i.valor) || 0), 0);
+  const totalDespesas = lancamentosDoMes.filter(i => i.tipo === 'saida').reduce((acc, i) => acc + (Number(i.valor) || 0), 0);
   const lucroLiquido = totalReceitas - totalDespesas;
 
   const gastosPorCategoria = perfil.categorias.map(cat => ({
     name: cat,
-    value: lancamentosDoMes.filter(i => i.tipo === 'saida' && i.categoria === cat).reduce((acc, i) => acc + Number(i.valor), 0)
+    value: lancamentosDoMes.filter(i => i.tipo === 'saida' && i.categoria === cat).reduce((acc, i) => acc + (Number(i.valor) || 0), 0)
   })).filter(item => item.value > 0);
 
   const dadosAnuais = Array.from({ length: 12 }, (_, i) => {
-    const mesItems = lancamentos.filter(l => new Date(l.data_vencimento + 'T00:00:00').getMonth() === i && new Date(l.data_vencimento + 'T00:00:00').getFullYear() === anoVis);
+    const mesItems = lancamentos.filter(l => {
+      const d = new Date(l.data_vencimento + 'T00:00:00');
+      return d.getMonth() === i && d.getFullYear() === anoVis;
+    });
     return {
       name: new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(new Date(anoVis, i)),
-      receita: mesItems.filter(l => l.tipo === 'entrada').reduce((acc, l) => acc + Number(l.valor), 0),
-      despesa: mesItems.filter(l => l.tipo === 'saida').reduce((acc, l) => acc + Number(l.valor), 0)
+      receita: mesItems.filter(l => l.tipo === 'entrada').reduce((acc, l) => acc + (Number(l.valor) || 0), 0),
+      despesa: mesItems.filter(l => l.tipo === 'saida').reduce((acc, l) => acc + (Number(l.valor) || 0), 0)
     };
   });
-
-  const CORES = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899'];
 
   if (user && assinaturaVencida) {
     return (
@@ -223,7 +214,7 @@ export default function GSAFlowRefinado() {
 
       {/* 🔔 ALERTA GLOBAL */}
       {itensAtrasadosGeral.length > 0 && (
-        <div className="max-w-6xl mx-auto mb-6 bg-red-600/10 border border-red-500/30 p-4 rounded-2xl flex justify-between items-center gap-4">
+        <div className="max-w-6xl mx-auto mb-6 bg-red-600/10 border border-red-500/30 p-4 rounded-2xl flex justify-between items-center gap-4 animate-in fade-in slide-in-from-top duration-500">
            <p className="text-[10px] font-black uppercase tracking-widest text-red-500">⚠️ {perfil.nome_empresa}, você possui {itensAtrasadosGeral.length} pendências atrasadas.</p>
            <button onClick={() => setDataVisualizacao(new Date(itensAtrasadosGeral[0].data_vencimento + 'T00:00:00'))} className="bg-red-600 text-white px-4 py-2 rounded-xl text-[8px] font-black uppercase">Resolver Agora</button>
         </div>
@@ -257,17 +248,17 @@ export default function GSAFlowRefinado() {
           </div>
 
           <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-            {/* 📉 BARRA DE PROGRESSO REFINADA E DISCRETA */}
             <div className="lg:col-span-2 bg-zinc-900/20 border border-zinc-800 p-8 rounded-[2rem] flex flex-col justify-center">
                 <div className="flex justify-between items-end mb-2">
                   <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Desempenho da Meta</p>
-                  <p className="text-blue-500 text-[10px] font-black italic">{Math.round((totalReceitas / perfil.meta_faturamento) * 100)}%</p>
+                  <p className="text-blue-500 text-[10px] font-black italic">{perfil.meta_faturamento > 0 ? Math.round((totalReceitas / perfil.meta_faturamento) * 100) : 0}%</p>
                 </div>
                 <div className="w-full bg-zinc-950 h-1.5 rounded-full overflow-hidden border border-zinc-800/50">
                     <div className="h-full bg-blue-600 transition-all duration-1000" style={{ width: `${Math.min((totalReceitas / perfil.meta_faturamento) * 100, 100)}%` }} />
                 </div>
             </div>
-            <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[280px]">
+            {/* CONTAINER COM ALTURA FIXA PARA O GRÁFICO DE PIZZA */}
+            <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={gastosPorCategoria} innerRadius={45} outerRadius={60} paddingAngle={5} dataKey="value" stroke="none">
@@ -281,7 +272,8 @@ export default function GSAFlowRefinado() {
           </div>
         </>
       ) : (
-        <div className="max-w-6xl mx-auto bg-zinc-900/20 border border-zinc-800 p-8 rounded-[2.5rem] mb-10 h-[400px]">
+        /* CONTAINER COM ALTURA FIXA PARA O GRÁFICO ANUAL */
+        <div className="max-w-6xl mx-auto bg-zinc-900/20 border border-zinc-800 p-8 rounded-[2.5rem] mb-10 h-[400px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={dadosAnuais}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />

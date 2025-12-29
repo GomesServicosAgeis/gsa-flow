@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
 
-export default function GSAFlowV152() {
-  // --- ESTADOS GLOBAIS ---
+export default function GSAFlowV153() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
@@ -13,8 +12,12 @@ export default function GSAFlowV152() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [lancamentos, setLancamentos] = useState<any[]>([]);
   const [perfil, setPerfil] = useState<any>(null);
+  const [mostrarConfig, setMostrarConfig] = useState(false);
+  const [editNomeEmpresa, setEditNomeEmpresa] = useState('');
+  const [editMeta, setEditMeta] = useState(0);
+  const [novaCatInput, setNovaCatInput] = useState('');
 
-  // --- ESTADOS DE INTERFACE ---
+  // Estados de Lançamento
   const [dataVisualizacao, setDataVisualizacao] = useState(new Date());
   const [idEmEdicao, setIdEmEdicao] = useState<string | null>(null);
   const [novaDescricao, setNovaDescricao] = useState('');
@@ -24,15 +27,10 @@ export default function GSAFlowV152() {
   const [novaCategoria, setNovaCategoria] = useState('Freelancer');
   const [novoParcelas, setNovoParcelas] = useState(1);
   const [novoComprovante, setNovoComprovante] = useState('');
-  const [mostrarConfig, setMostrarConfig] = useState(false);
-  const [editNomeEmpresa, setEditNomeEmpresa] = useState('');
-  const [editMeta, setEditMeta] = useState(0);
-  const [novaCatInput, setNovaCatInput] = useState('');
 
   const CORES = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899'];
   const formatarMoeda = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  // --- SINCRONIZAÇÃO DE DADOS ---
   useEffect(() => {
     const sessionInit = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -40,7 +38,6 @@ export default function GSAFlowV152() {
       
       if (session?.user) {
         const { data: prof } = await supabase.from('perfis_usuarios').select('*').eq('id', session.user.id).single();
-        
         if (prof) {
           setPerfil(prof);
           setEditNomeEmpresa(prof.nome_empresa);
@@ -50,11 +47,11 @@ export default function GSAFlowV152() {
           const { data: nProf } = await supabase.from('perfis_usuarios').insert({ 
             id: session.user.id, 
             expira_em: dataExp.toISOString(),
-            nome_empresa: 'Gomes Serviços Ágeis',
+            nome_empresa: 'Meu Negócio',
             categorias: ['Freelancer', 'Pessoal', 'Transporte', 'Fixos', 'Contas'],
             meta_faturamento: 10000
           }).select().single();
-          if (nProf) setPerfil(nProf);
+          setPerfil(nProf);
         }
         carregarLancamentos();
       }
@@ -68,18 +65,7 @@ export default function GSAFlowV152() {
     if (data) setLancamentos(data.sort((a,b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime()));
   }
 
-  // --- LÓGICA DA TRAVA SINCRONIZADA ---
-  const isAdmin = user?.email === 'gomesservicosageis@gmail.com';
-  const hoje = new Date();
-  const dataExpiracao = perfil?.expira_em ? new Date(perfil.expira_em) : null;
-  
-  // Só valida bloqueio se o perfil já foi carregado
-  const deveBloquear = user && !isAdmin && perfil && (dataExpiracao && hoje > dataExpiracao);
-
-  console.log("📊 MONITORAMENTO GSA:", { usuario: user?.email, perfilAtivo: !!perfil, bloquear: deveBloquear });
-
   async function atualizarPerfil() {
-    if (!user) return;
     const { error } = await supabase.from('perfis_usuarios').update({ 
       nome_empresa: editNomeEmpresa, meta_faturamento: editMeta, categorias: perfil.categorias 
     }).eq('id', user.id);
@@ -96,8 +82,7 @@ export default function GSAFlowV152() {
     if (idEmEdicao) {
         await supabase.from('lancamentos').update({ 
             descricao: novaDescricao, valor: valLimpo, tipo: novoTipo, 
-            data_vencimento: novaData, categoria: novaCategoria, 
-            user_id: user.id, comprovante_url: novoComprovante || null
+            data_vencimento: novaData, categoria: novaCategoria, user_id: user.id
         }).eq('id', idEmEdicao);
     } else {
         const novos = [];
@@ -106,68 +91,64 @@ export default function GSAFlowV152() {
             novos.push({
                 descricao: `${novaDescricao} ${novoParcelas > 1 ? `(${i + 1}/${novoParcelas})` : ''}`.trim(),
                 valor: valLimpo, tipo: novoTipo, data_vencimento: d.toISOString().split('T')[0],
-                categoria: novaCategoria, user_id: user.id, status: 'agendado',
-                comprovante_url: novoComprovante || null
+                categoria: novaCategoria, user_id: user.id, status: 'agendado'
             });
         }
         await supabase.from('lancamentos').insert(novos);
     }
-    setNovaDescricao(''); setNovoValor(''); setIdEmEdicao(null); setNovoParcelas(1); setNovoComprovante(''); carregarLancamentos();
+    setNovaDescricao(''); setNovoValor(''); setIdEmEdicao(null); setNovoParcelas(1); carregarLancamentos();
   };
 
-  // --- ESTADO DE CARREGAMENTO ---
+  // --- LÓGICA DE TRAVA ---
+  const isAdmin = user?.email === 'gomesservicosageis@gmail.com';
+  const hoje = new Date();
+  const dataExpiracao = perfil?.expira_em ? new Date(perfil.expira_em) : null;
+  const deveBloquear = user && !isAdmin && perfil && (dataExpiracao && hoje > dataExpiracao);
+
   if (loading || (user && !perfil && !isAdmin)) {
-    return <div className="min-h-screen bg-[#06080a] flex items-center justify-center text-blue-500 font-black animate-pulse uppercase italic tracking-widest">GSA FLOW: SINCRONIZANDO...</div>;
+    return <div className="min-h-screen bg-[#06080a] flex items-center justify-center text-blue-500 font-black animate-pulse italic">GSA FLOW: VALIDANDO...</div>;
   }
 
-  // --- TELA DE BLOQUEIO ---
   if (deveBloquear) {
     return (
-      <div className="min-h-screen bg-[#06080a] flex items-center justify-center p-6 text-white text-center font-sans overflow-hidden">
-        <div className="bg-zinc-900 border border-red-500/40 p-10 rounded-[3.5rem] w-full max-w-md shadow-[0_0_60px_rgba(239,68,68,0.2)] backdrop-blur-xl relative z-10">
+      <div className="min-h-screen bg-[#06080a] flex items-center justify-center p-6 text-white text-center font-sans">
+        <div className="bg-zinc-900 border border-red-500/40 p-10 rounded-[3.5rem] w-full max-w-md shadow-2xl backdrop-blur-xl">
           <div className="text-7xl mb-6">🔒</div>
-          <h2 className="text-3xl font-black text-red-500 uppercase italic mb-4 tracking-tighter">Acesso Expirado</h2>
-          <p className="text-zinc-500 text-sm mb-10 leading-relaxed font-medium italic">
-            Sua licença para o cockpit expirou em {dataExpiracao?.toLocaleDateString('pt-BR')}. <br/>
-            Reative agora para continuar seus lançamentos.
-          </p>
-          <div className="space-y-4">
-            <a href="https://www.mercadopago.com.br" className="block bg-blue-600 hover:bg-blue-500 text-white p-5 rounded-3xl font-black uppercase text-[11px] tracking-widest shadow-lg shadow-blue-600/30 transition-all transform hover:scale-105 active:scale-95">Renovar Agora</a>
-            <button onClick={() => window.location.reload()} className="text-zinc-600 text-[10px] font-black uppercase underline hover:text-white transition-colors">Confirmar Pagamento</button>
-          </div>
+          <h2 className="text-3xl font-black text-red-500 uppercase italic mb-4">Acesso Suspenso</h2>
+          <p className="text-zinc-500 text-sm mb-10 leading-relaxed font-medium italic">Sua licença expirou em {dataExpiracao?.toLocaleDateString('pt-BR')}. Reative para continuar.</p>
+          <a href="https://www.mercadopago.com.br" className="block bg-blue-600 p-5 rounded-3xl font-black uppercase text-[11px] tracking-widest shadow-lg shadow-blue-600/20 transition-all hover:scale-105">Renovar Agora</a>
         </div>
       </div>
     );
   }
 
-  // --- LOGIN ---
   if (!user) return (
     <div className="min-h-screen bg-[#06080a] flex items-center justify-center p-6 text-white text-center font-sans">
       <div className="bg-zinc-900 border border-white/5 p-10 rounded-[3rem] w-full max-w-md shadow-2xl backdrop-blur-xl">
-        <h1 className="text-4xl font-black text-blue-500 mb-2 italic uppercase tracking-tighter leading-none">GSA FLOW</h1>
-        <p className="text-zinc-600 text-[9px] font-bold uppercase mb-10 tracking-[0.4em]">Business Intelligence</p>
-        <form onSubmit={async (e) => { e.preventDefault(); const { error } = isSignUp ? await supabase.auth.signUp({email, password}) : await supabase.auth.signInWithPassword({email, password}); if (error) alert(error.message); else window.location.reload(); }} className="space-y-4 text-left">
-          <input type="email" placeholder="E-mail" className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white outline-none focus:border-blue-500" value={email} onChange={e => setEmail(e.target.value)} required />
-          <input type="password" placeholder="Senha" className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white outline-none focus:border-blue-500" value={password} onChange={e => setPassword(e.target.value)} required />
-          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-2xl uppercase text-xs tracking-widest shadow-lg shadow-blue-600/20">{isSignUp ? 'Criar Conta' : 'Acessar Cockpit'}</button>
+        <h1 className="text-4xl font-black text-blue-500 mb-2 italic uppercase">GSA FLOW</h1>
+        <form onSubmit={async (e) => { e.preventDefault(); const { error } = isSignUp ? await supabase.auth.signUp({email, password}) : await supabase.auth.signInWithPassword({email, password}); if (error) alert(error.message); else window.location.reload(); }} className="space-y-4 text-left mt-10">
+          <input type="email" placeholder="E-mail" className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white outline-none" value={email} onChange={e => setEmail(e.target.value)} required />
+          <input type="password" placeholder="Senha" className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white outline-none" value={password} onChange={e => setPassword(e.target.value)} required />
+          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-2xl uppercase text-xs tracking-widest">{isSignUp ? 'Criar Conta' : 'Entrar'}</button>
         </form>
-        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full mt-8 text-zinc-600 text-[9px] font-black uppercase tracking-widest">{isSignUp ? 'Já tem conta? Login' : 'Novo por aqui? Criar Acesso'}</button>
+        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full mt-8 text-zinc-600 text-[9px] font-black uppercase">{isSignUp ? 'Login' : 'Criar Acesso'}</button>
       </div>
     </div>
   );
 
-  // --- LOGICA DE DADOS DO COCKPIT ---
+  // --- CÁLCULOS DO COCKPIT ---
   const mesVis = dataVisualizacao.getMonth();
   const anoVis = dataVisualizacao.getFullYear();
-  const itensAtrasadosGeral = lancamentos.filter(i => i.status !== 'confirmado' && new Date(i.data_vencimento + 'T00:00:00') < hoje);
   const lancamentosDoMes = lancamentos.filter(i => {
     const d = new Date(i.data_vencimento + 'T00:00:00');
     return d.getMonth() === mesVis && d.getFullYear() === anoVis;
   });
+
   const totalReceitas = lancamentosDoMes.filter(i => i.tipo === 'entrada').reduce((acc, i) => acc + (Number(i.valor) || 0), 0);
   const totalDespesas = lancamentosDoMes.filter(i => i.tipo === 'saida').reduce((acc, i) => acc + (Number(i.valor) || 0), 0);
   const lucroLiquido = totalReceitas - totalDespesas;
   const porcentagemMeta = (perfil?.meta_faturamento > 0) ? Math.round((totalReceitas / perfil.meta_faturamento) * 100) : 0;
+
   const gastosPorCategoria = perfil?.categorias?.map((cat: string) => ({
     name: cat,
     value: lancamentosDoMes.filter(i => i.tipo === 'saida' && i.categoria === cat).reduce((acc, i) => acc + (Number(i.valor) || 0), 0)
@@ -176,11 +157,9 @@ export default function GSAFlowV152() {
   const dadosCincoMeses = Array.from({ length: 5 }, (_, i) => {
     const offset = i - 2;
     const dataRef = new Date(anoVis, mesVis + offset, 1);
-    const mIdx = dataRef.getMonth();
-    const aIdx = dataRef.getFullYear();
     const mesItems = lancamentos.filter(l => {
         const d = new Date(l.data_vencimento + 'T00:00:00');
-        return d.getMonth() === mIdx && d.getFullYear() === aIdx;
+        return d.getMonth() === dataRef.getMonth() && d.getFullYear() === dataRef.getFullYear();
     });
     return {
       name: new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(dataRef),
@@ -189,98 +168,59 @@ export default function GSAFlowV152() {
     };
   });
 
-  // --- RENDER DO COCKPIT ---
   return (
     <div className="min-h-screen bg-[#06080a] text-zinc-300 p-4 sm:p-8 font-sans text-sm pb-24 overflow-x-hidden">
       
-      {/* MODAL CONFIGURAÇÃO */}
-      {mostrarConfig && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-white/10 p-8 rounded-[3rem] w-full max-w-lg shadow-2xl relative">
-            <h2 className="text-xl font-black text-blue-500 uppercase italic mb-8 tracking-tighter">Cockpit Settings</h2>
-            <div className="space-y-6">
-              <div>
-                <label className="text-[9px] font-black uppercase text-zinc-500 tracking-widest mb-2 block font-sans">Nome da Empresa</label>
-                <input type="text" className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white outline-none focus:border-blue-500/50" value={editNomeEmpresa} onChange={e => setEditNomeEmpresa(e.target.value)} />
-              </div>
-              <div>
-                <label className="text-[9px] font-black uppercase text-zinc-500 tracking-widest mb-2 block font-sans">Meta Mensal (R$)</label>
-                <input type="number" className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white outline-none focus:border-blue-500/50 font-mono" value={editMeta} onChange={e => setEditMeta(Number(e.target.value))} />
-              </div>
-              <div>
-                <label className="text-[9px] font-black uppercase text-zinc-500 tracking-widest mb-2 block font-sans">Gerenciar Categorias</label>
-                <div className="flex gap-2 mb-4">
-                  <input type="text" className="flex-1 bg-black/40 p-3 rounded-xl border border-white/5 text-xs text-white" value={novaCatInput} onChange={e => setNovaCatInput(e.target.value)} placeholder="Nova..." />
-                  <button onClick={() => { if(novaCatInput) { setPerfil({...perfil, categorias: [...perfil.categorias, novaCatInput]}); setNovaCatInput(''); } }} className="bg-blue-600 px-4 rounded-xl font-black shadow-lg shadow-blue-600/20">+</button>
-                </div>
-                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto no-scrollbar">
-                  {perfil?.categorias?.map((cat: string) => (
-                    <span key={cat} className="bg-zinc-800/50 border border-white/5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase">{cat} <button onClick={() => setPerfil({...perfil, categorias: perfil.categorias.filter((c: string) => c !== cat)})} className="text-red-500 ml-1 hover:text-white transition-colors">×</button></span>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-10">
-              <button onClick={atualizarPerfil} className="flex-1 bg-blue-600 text-white p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-500/20 italic transition-all hover:bg-blue-500">Gravar Alterações</button>
-              <button onClick={() => setMostrarConfig(false)} className="bg-zinc-800 text-zinc-400 p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Sair</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ALERTA GLOBAL */}
-      {itensAtrasadosGeral.length > 0 && (
-        <div className="max-w-7xl mx-auto mb-6 bg-red-600/10 border border-red-500/30 p-4 rounded-3xl flex justify-between items-center gap-4 backdrop-blur-md shadow-lg shadow-red-900/10">
-           <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-red-600 animate-ping" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-red-500 font-sans">Pendências Críticas: {itensAtrasadosGeral.length} vencidos.</p>
-           </div>
-           <button onClick={() => setDataVisualizacao(new Date(itensAtrasadosGeral[0].data_vencimento + 'T00:00:00'))} className="bg-red-600 text-white px-4 py-2 rounded-2xl text-[8px] font-black uppercase tracking-widest shadow-lg shadow-red-600/20 transition-all active:scale-95">Resolver</button>
-        </div>
-      )}
-
-      {/* HEADER */}
+      {/* HEADER PREMIUM */}
       <header className="flex flex-col sm:flex-row justify-between items-center mb-10 max-w-7xl mx-auto gap-4">
         <div>
           <h1 className="text-3xl font-black text-blue-500 italic uppercase leading-none tracking-tighter">GSA FLOW</h1>
-          <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-[0.4em] mt-1 italic">{perfil?.nome_empresa}</p>
+          <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-[0.4em] mt-1">{perfil?.nome_empresa}</p>
         </div>
-        
-        <div className="flex gap-4 items-center bg-zinc-900/40 p-2 px-6 rounded-full border border-white/5 shadow-xl backdrop-blur-md">
-            <div className="flex items-center gap-4 text-zinc-500 text-[10px] font-black uppercase tracking-widest font-sans">
-                <button onClick={() => setDataVisualizacao(new Date(dataVisualizacao.setMonth(dataVisualizacao.getMonth() - 1)))} className="hover:text-white transition-colors">◀</button>
+        <div className="flex gap-4 items-center bg-zinc-900/40 p-2 px-6 rounded-full border border-white/5">
+            <div className="flex items-center gap-4 text-zinc-500 text-[10px] font-black uppercase">
+                <button onClick={() => setDataVisualizacao(new Date(dataVisualizacao.setMonth(dataVisualizacao.getMonth() - 1)))}>◀</button>
                 <span className="min-w-[140px] text-center text-zinc-200 uppercase">{new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(dataVisualizacao)}</span>
-                <button onClick={() => setDataVisualizacao(new Date(dataVisualizacao.setMonth(dataVisualizacao.getMonth() + 1)))} className="hover:text-white transition-colors">▶</button>
+                <button onClick={() => setDataVisualizacao(new Date(dataVisualizacao.setMonth(dataVisualizacao.getMonth() + 1)))}>▶</button>
             </div>
             <div className="w-[1px] h-4 bg-white/10 mx-2" />
-            <button onClick={() => setMostrarConfig(true)} className="text-lg hover:rotate-90 transition-all duration-500 cursor-pointer">⚙️</button>
-            <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-[9px] font-black uppercase text-zinc-600 hover:text-red-400 transition-colors font-sans">Sair</button>
+            <button onClick={() => setMostrarConfig(true)} className="text-lg hover:rotate-90 transition-all duration-500">⚙️</button>
+            <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-[9px] font-black uppercase text-zinc-600 hover:text-red-400">Sair</button>
         </div>
       </header>
 
-      {/* CARDS */}
+      {/* CARDS VALORES (image_869a2d.png) */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] shadow-xl backdrop-blur-md"><p className="text-blue-500 text-[8px] font-black uppercase mb-1 tracking-widest font-sans">Entradas</p><h2 className="text-2xl font-black italic text-white">{formatarMoeda(totalReceitas)}</h2></div>
-        <div className="bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] shadow-xl backdrop-blur-md"><p className="text-red-500 text-[8px] font-black uppercase mb-1 tracking-widest font-sans">Saídas</p><h2 className="text-2xl font-black italic text-white">{formatarMoeda(totalDespesas)}</h2></div>
-        <div className="bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] shadow-xl backdrop-blur-md"><p className="text-zinc-500 text-[8px] font-black uppercase mb-1 tracking-widest font-sans">Saldo Previsto</p><h2 className={`text-2xl font-black italic ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>{formatarMoeda(lucroLiquido)}</h2></div>
-        <div className="bg-zinc-900/10 border border-dashed border-white/10 p-6 rounded-[2.5rem] flex items-center justify-center text-center backdrop-blur-sm"><p className="text-zinc-700 text-[8px] font-black uppercase italic tracking-widest font-sans">Meta Alvo: <br/>{formatarMoeda(perfil?.meta_faturamento || 0)}</p></div>
+        <div className="bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] shadow-xl backdrop-blur-md">
+          <p className="text-blue-500 text-[8px] font-black uppercase mb-1 tracking-widest">Entradas</p>
+          <h2 className="text-2xl font-black italic text-white">{formatarMoeda(totalReceitas)}</h2>
+        </div>
+        <div className="bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] shadow-xl backdrop-blur-md">
+          <p className="text-red-500 text-[8px] font-black uppercase mb-1 tracking-widest">Saídas</p>
+          <h2 className="text-2xl font-black italic text-white">{formatarMoeda(totalDespesas)}</h2>
+        </div>
+        <div className="bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] shadow-xl backdrop-blur-md">
+          <p className="text-zinc-500 text-[8px] font-black uppercase mb-1 tracking-widest">Saldo Previsto</p>
+          <h2 className={`text-2xl font-black italic ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>{formatarMoeda(lucroLiquido)}</h2>
+        </div>
+        <div className="bg-zinc-900/10 border border-dashed border-white/10 p-6 rounded-[2.5rem] flex items-center justify-center text-center backdrop-blur-sm">
+          <p className="text-zinc-700 text-[8px] font-black uppercase italic tracking-widest">Meta Mensal: <br/>{formatarMoeda(perfil?.meta_faturamento || 0)}</p>
+        </div>
       </div>
 
-      {/* TRIPLE COCKPIT */}
+      {/* TRIPLE GRID COCKPIT (image_869a2d.png) */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        {/* BATERIA */}
         <div className="bg-zinc-900/40 border border-white/5 p-8 rounded-[2.5rem] h-[320px] flex flex-col items-center justify-between shadow-2xl relative overflow-hidden backdrop-blur-md">
-            <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest font-sans">Battery Status</p>
+            <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Battery Status</p>
             <div className="relative w-16 h-44 bg-black/60 rounded-2xl border border-white/10 overflow-hidden flex flex-col-reverse shadow-inner">
                 <div className="w-full bg-gradient-to-t from-blue-700 via-blue-500 to-blue-400 transition-all duration-1000 shadow-[0_0_20px_rgba(59,130,246,0.5)]" style={{ height: `${Math.min(porcentagemMeta, 100)}%` }} />
                 <div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-xl font-black italic mix-blend-difference">{porcentagemMeta}%</span></div>
             </div>
-            <p className="text-blue-500/40 text-[8px] font-black uppercase tracking-widest italic tracking-[0.2em] font-sans">Efficiency Status</p>
+            <p className="text-blue-500/40 text-[8px] font-black uppercase tracking-widest italic tracking-[0.2em]">Meta Mensal</p>
         </div>
 
-        {/* TENDÊNCIA */}
         <div className="bg-zinc-900/40 border border-white/5 p-6 rounded-[2.5rem] h-[320px] shadow-2xl flex flex-col backdrop-blur-md">
-            <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest mb-6 text-center font-sans">Cashflow Trend (5M)</p>
+            <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest mb-6 text-center">Fluxo 5 Meses</p>
             <div className="flex-1 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={dadosCincoMeses}>
@@ -293,9 +233,8 @@ export default function GSAFlowV152() {
             </div>
         </div>
 
-        {/* PIZZA */}
         <div className="bg-zinc-900/40 border border-white/5 p-6 rounded-[2.5rem] h-[320px] shadow-2xl flex flex-col items-center overflow-hidden backdrop-blur-md">
-            <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest mb-4 text-center font-sans">Mix Categorias</p>
+            <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest mb-4 text-center">Mix Categorias</p>
             <div className="flex-1 w-full relative">
                 {gastosPorCategoria.length > 0 ? (
                     <>
@@ -318,12 +257,12 @@ export default function GSAFlowV152() {
                         ))}
                     </div>
                     </>
-                ) : ( <div className="h-full flex items-center justify-center text-zinc-800 text-[8px] font-black uppercase tracking-widest italic font-sans">Sem dados</div> )}
+                ) : ( <div className="h-full flex items-center justify-center text-zinc-800 text-[8px] font-black uppercase italic">Sem dados registrados</div> )}
             </div>
         </div>
       </div>
 
-      {/* FORMULÁRIO */}
+      {/* FORMULÁRIO (image_869a2d.png) */}
       <div className={`max-w-7xl mx-auto p-6 rounded-[3rem] border backdrop-blur-sm mb-10 shadow-2xl transition-all duration-500 ${idEmEdicao ? 'bg-blue-600/5 border-blue-500/50' : 'bg-zinc-900/20 border-white/5'}`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
           <div className="flex bg-black/40 rounded-2xl p-1 h-12 border border-white/5">
@@ -335,9 +274,9 @@ export default function GSAFlowV152() {
             {perfil?.categorias?.map((cat: string) => <option key={cat} value={cat}>{cat}</option>)}
           </select>
           <select className="bg-black/40 p-3 h-12 rounded-2xl border border-white/5 text-xs text-zinc-400 font-black outline-none" value={novoParcelas} onChange={e => setNovoParcelas(Number(e.target.value))}>
-            <option value={1}>Único</option><option value={2}>2x</option><option value={6}>6x</option><option value={12}>12x</option>
+            <option value={1}>Único</option><option value={2}>Repetir 2x</option><option value={6}>Repetir 6x</option><option value={12}>Repetir 12x</option>
           </select>
-          <input type="text" placeholder="Recibo" className="bg-black/40 p-3 h-12 rounded-2xl border border-white/5 text-xs text-zinc-500 outline-none" value={novoComprovante} onChange={e => setNovoComprovante(e.target.value)} />
+          <input type="text" placeholder="Link Comprovante" className="bg-black/40 p-3 h-12 rounded-2xl border border-white/5 text-xs text-zinc-500 outline-none" value={novoComprovante} onChange={e => setNovoComprovante(e.target.value)} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <input type="text" placeholder="Descrição" className="bg-black/40 p-4 h-14 rounded-2xl border border-white/5 text-xs text-white outline-none focus:border-blue-500/30 font-sans" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
@@ -346,7 +285,7 @@ export default function GSAFlowV152() {
         </div>
       </div>
 
-      {/* LISTAGEM */}
+      {/* LISTAGEM (image_869a2d.png) */}
       <div className="max-w-7xl mx-auto space-y-3 mb-20">
         {lancamentosDoMes.map((item) => {
           const eConfirmado = item.status === 'confirmado';

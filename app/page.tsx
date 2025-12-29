@@ -6,7 +6,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Ba
 // @ts-ignore
 import { Parser } from 'json2csv';
 
-export default function GSAFlowV121() {
+export default function GSAFlowV122() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
@@ -118,10 +118,11 @@ export default function GSAFlowV121() {
   const isAdmin = user?.email === 'gomesservicosageis@gmail.com';
   const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira_em) < new Date();
 
-  // --- LÓGICA DE DADOS REFORÇADA PARA OS GRÁFICOS ---
+  // --- LÓGICA DE DADOS (AGORA INCLUINDO TODOS OS STATUS) ---
   const mesVis = dataVisualizacao.getMonth();
   const anoVis = dataVisualizacao.getFullYear();
   const hoje = new Date(); hoje.setHours(0,0,0,0);
+  
   const itensAtrasadosGeral = lancamentos.filter(i => i.status !== 'confirmado' && new Date(i.data_vencimento + 'T00:00:00') < hoje);
 
   const lancamentosDoMes = lancamentos.filter(i => {
@@ -130,6 +131,7 @@ export default function GSAFlowV121() {
   });
   const lancamentosExibidos = filtroCategoria === 'Todas' ? lancamentosDoMes : lancamentosDoMes.filter(i => i.categoria === filtroCategoria);
 
+  // Somamos tudo (agendado + confirmado) para o Dashboard ser preditivo
   const totalReceitas = lancamentosDoMes.filter(i => i.tipo === 'entrada').reduce((acc, i) => acc + (Number(i.valor) || 0), 0);
   const totalDespesas = lancamentosDoMes.filter(i => i.tipo === 'saida').reduce((acc, i) => acc + (Number(i.valor) || 0), 0);
   const lucroLiquido = totalReceitas - totalDespesas;
@@ -159,7 +161,7 @@ export default function GSAFlowV121() {
           <h1 className="text-2xl font-black text-red-500 uppercase italic mb-2 tracking-tighter">Acesso Suspenso</h1>
           <p className="text-zinc-400 text-sm mb-8 leading-relaxed">Assinatura expirada para <strong>{perfil.nome_empresa}</strong>.</p>
           <div className="space-y-3">
-            <a href="https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=eb0e8f15cbbd4be085473bca86164037" className="block bg-blue-600 p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500">Assinar Mensal</a>
+            <a href="https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=eb0e8f15cbbd4be085473bca86164037" className="block bg-blue-600 p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500 shadow-lg shadow-blue-600/20">Assinar Mensal</a>
             <a href="https://mpago.li/1fcbewH" className="block bg-zinc-800 p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest border border-zinc-700">Pix 30 dias</a>
           </div>
           <button onClick={() => window.location.reload()} className="mt-8 text-blue-500 text-[10px] font-black uppercase underline italic">Já paguei, quero entrar</button>
@@ -216,7 +218,7 @@ export default function GSAFlowV121() {
       {itensAtrasadosGeral.length > 0 && (
         <div className="max-w-6xl mx-auto mb-6 bg-red-600/10 border border-red-500/30 p-4 rounded-2xl flex justify-between items-center gap-4 animate-in fade-in slide-in-from-top duration-500">
            <p className="text-[10px] font-black uppercase tracking-widest text-red-500">⚠️ {perfil.nome_empresa}, você possui {itensAtrasadosGeral.length} pendências atrasadas.</p>
-           <button onClick={() => setDataVisualizacao(new Date(itensAtrasadosGeral[0].data_vencimento + 'T00:00:00'))} className="bg-red-600 text-white px-4 py-2 rounded-xl text-[8px] font-black uppercase">Resolver Agora</button>
+           <button onClick={() => setDataVisualizacao(new Date(itensAtrasadosGeral[0].data_vencimento + 'T00:00:00'))} className="bg-red-600 text-white px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest">Resolver Agora</button>
         </div>
       )}
 
@@ -231,56 +233,54 @@ export default function GSAFlowV121() {
             </div>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setAbaAtiva('mes')} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase ${abaAtiva === 'mes' ? 'bg-blue-600' : 'bg-zinc-900'}`}>Mês</button>
-          <button onClick={() => setAbaAtiva('ano')} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase ${abaAtiva === 'ano' ? 'bg-blue-600' : 'bg-zinc-900'}`}>Ano</button>
+          <button onClick={() => setAbaAtiva('mes')} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${abaAtiva === 'mes' ? 'bg-blue-600' : 'bg-zinc-900'}`}>Mês</button>
+          <button onClick={() => setAbaAtiva('ano')} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${abaAtiva === 'ano' ? 'bg-blue-600' : 'bg-zinc-900'}`}>Ano</button>
           <button onClick={() => setMostrarConfig(true)} className="p-2 bg-zinc-900 rounded-full border border-zinc-800">⚙️</button>
-          <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="px-4 py-2 bg-zinc-900 rounded-full text-[9px] font-black uppercase text-zinc-600">Sair</button>
+          <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="px-4 py-2 bg-zinc-900 rounded-full text-[9px] font-black uppercase text-zinc-600 tracking-widest">Sair</button>
         </div>
       </header>
 
       {abaAtiva === 'mes' ? (
         <>
           <div className="max-w-6xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-blue-600/10 border border-blue-500/20 p-6 rounded-[2rem]"><p className="text-blue-400 text-[8px] font-black uppercase">Entradas</p><h2 className="text-2xl font-black italic">R$ {totalReceitas.toLocaleString('pt-BR')}</h2></div>
-            <div className="bg-red-600/10 border border-red-500/20 p-6 rounded-[2rem]"><p className="text-red-400 text-[8px] font-black uppercase">Saídas</p><h2 className="text-2xl font-black italic">R$ {totalDespesas.toLocaleString('pt-BR')}</h2></div>
-            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem]"><p className="text-zinc-500 text-[8px] font-black uppercase">Lucro</p><h2 className={`text-2xl font-black italic ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>R$ {lucroLiquido.toLocaleString('pt-BR')}</h2></div>
-            <div className="bg-zinc-900 border border-zinc-800/50 p-6 rounded-[2rem] border-dashed text-center"><p className="text-zinc-600 text-[8px] font-black uppercase">Meta</p><h2 className="text-2xl font-black italic text-zinc-400">R$ {perfil.meta_faturamento.toLocaleString('pt-BR')}</h2></div>
+            <div className="bg-blue-600/10 border border-blue-500/20 p-6 rounded-[2rem] shadow-lg shadow-blue-600/5"><p className="text-blue-400 text-[8px] font-black uppercase tracking-widest">Entradas Totais</p><h2 className="text-2xl font-black italic">R$ {totalReceitas.toLocaleString('pt-BR')}</h2></div>
+            <div className="bg-red-600/10 border border-red-500/20 p-6 rounded-[2rem] shadow-lg shadow-red-600/5"><p className="text-red-400 text-[8px] font-black uppercase tracking-widest">Saídas Totais</p><h2 className="text-2xl font-black italic">R$ {totalDespesas.toLocaleString('pt-BR')}</h2></div>
+            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem] shadow-xl"><p className="text-zinc-500 text-[8px] font-black uppercase tracking-widest">Saldo Previsto</p><h2 className={`text-2xl font-black italic ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>R$ {lucroLiquido.toLocaleString('pt-BR')}</h2></div>
+            <div className="bg-zinc-900 border border-zinc-800/50 p-6 rounded-[2rem] border-dashed text-center shadow-xl"><p className="text-zinc-600 text-[8px] font-black uppercase tracking-widest">Meta</p><h2 className="text-2xl font-black italic text-zinc-400">R$ {perfil.meta_faturamento.toLocaleString('pt-BR')}</h2></div>
           </div>
 
           <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-            <div className="lg:col-span-2 bg-zinc-900/20 border border-zinc-800 p-8 rounded-[2rem] flex flex-col justify-center">
+            <div className="lg:col-span-2 bg-zinc-900/20 border border-zinc-800 p-8 rounded-[2rem] flex flex-col justify-center shadow-inner">
                 <div className="flex justify-between items-end mb-2">
-                  <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Desempenho da Meta</p>
+                  <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Progresso Financeiro</p>
                   <p className="text-blue-500 text-[10px] font-black italic">{perfil.meta_faturamento > 0 ? Math.round((totalReceitas / perfil.meta_faturamento) * 100) : 0}%</p>
                 </div>
                 <div className="w-full bg-zinc-950 h-1.5 rounded-full overflow-hidden border border-zinc-800/50">
-                    <div className="h-full bg-blue-600 transition-all duration-1000" style={{ width: `${Math.min((totalReceitas / perfil.meta_faturamento) * 100, 100)}%` }} />
+                    <div className="h-full bg-blue-600 transition-all duration-1000 shadow-[0_0_10px_rgba(37,99,235,0.4)]" style={{ width: `${Math.min((totalReceitas / perfil.meta_faturamento) * 100, 100)}%` }} />
                 </div>
             </div>
-            {/* CONTAINER COM ALTURA FIXA PARA O GRÁFICO DE PIZZA */}
-            <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[300px] w-full">
+            <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[300px] w-full shadow-2xl">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={gastosPorCategoria} innerRadius={45} outerRadius={60} paddingAngle={5} dataKey="value" stroke="none">
                     {gastosPorCategoria.map((_, index) => <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />)}
                   </Pie>
                   <Tooltip contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', fontSize: '10px' }} />
-                  <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold' }} />
+                  <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
           </div>
         </>
       ) : (
-        /* CONTAINER COM ALTURA FIXA PARA O GRÁFICO ANUAL */
-        <div className="max-w-6xl mx-auto bg-zinc-900/20 border border-zinc-800 p-8 rounded-[2.5rem] mb-10 h-[400px] w-full">
+        <div className="max-w-6xl mx-auto bg-zinc-900/20 border border-zinc-800 p-8 rounded-[2.5rem] mb-10 h-[400px] w-full shadow-2xl">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={dadosAnuais}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
               <XAxis dataKey="name" stroke="#a1a1aa" fontSize={10} axisLine={false} tickLine={false} />
               <YAxis stroke="#a1a1aa" fontSize={10} axisLine={false} tickLine={false} />
               <Tooltip cursor={{fill: '#27272a'}} contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px' }} />
-              <Legend />
+              <Legend iconType="circle" />
               <Bar dataKey="receita" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Receitas" />
               <Bar dataKey="despesa" fill="#ef4444" radius={[4, 4, 0, 0]} name="Despesas" />
             </BarChart>
@@ -289,22 +289,22 @@ export default function GSAFlowV121() {
       )}
 
       {/* FORMULÁRIO */}
-      <div className={`max-w-6xl mx-auto p-6 rounded-[2.5rem] border mb-10 transition-all ${idEmEdicao ? 'bg-blue-600/10 border-blue-500' : 'bg-zinc-900/40 border-zinc-800/50'}`}>
+      <div className={`max-w-6xl mx-auto p-6 rounded-[2.5rem] border mb-10 transition-all shadow-2xl ${idEmEdicao ? 'bg-blue-600/10 border-blue-500' : 'bg-zinc-900/40 border-zinc-800/50'}`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           <div className="flex bg-zinc-950 rounded-xl p-1 h-12">
-            <button onClick={() => setNovoTipo('entrada')} className={`flex-1 rounded-lg text-[9px] font-black uppercase ${novoTipo === 'entrada' ? 'bg-blue-600' : 'text-zinc-600'}`}>Receita</button>
-            <button onClick={() => setNovoTipo('saida')} className={`flex-1 rounded-lg text-[9px] font-black uppercase ${novoTipo === 'saida' ? 'bg-red-600' : 'text-zinc-600'}`}>Saída</button>
+            <button onClick={() => setNovoTipo('entrada')} className={`flex-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${novoTipo === 'entrada' ? 'bg-blue-600' : 'text-zinc-600'}`}>Receita</button>
+            <button onClick={() => setNovoTipo('saida')} className={`flex-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${novoTipo === 'saida' ? 'bg-red-600' : 'text-zinc-600'}`}>Saída</button>
           </div>
-          <input type="date" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white" value={novaData} onChange={e => setNovaData(e.target.value)} />
-          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white font-black" value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)}>
+          <input type="date" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none focus:border-blue-500" value={novaData} onChange={e => setNovaData(e.target.value)} />
+          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white font-black uppercase outline-none focus:border-blue-500" value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)}>
             {perfil.categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
           </select>
-          <input type="text" placeholder="Link do Comprovante" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novoComprovante} onChange={e => setNovoComprovante(e.target.value)} />
+          <input type="text" placeholder="Link do Comprovante" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none focus:border-blue-500" value={novoComprovante} onChange={e => setNovoComprovante(e.target.value)} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          <input type="text" placeholder="Descrição" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
-          <input type="number" placeholder="Valor" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white font-mono outline-none" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
-          <button onClick={salvarLancamento} className="bg-blue-600 text-white font-black h-12 rounded-xl text-[9px] uppercase tracking-widest">{idEmEdicao ? 'Salvar' : 'Lançar'}</button>
+          <input type="text" placeholder="Descrição do Lançamento" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none focus:border-blue-500" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
+          <input type="number" placeholder="Valor R$" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white font-mono outline-none focus:border-blue-500" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
+          <button onClick={salvarLancamento} className="bg-blue-600 hover:bg-blue-500 text-white font-black h-12 rounded-xl text-[9px] uppercase tracking-widest shadow-lg shadow-blue-600/20 transition-all">{idEmEdicao ? 'Salvar Alteração' : 'Lançar no Fluxo'}</button>
         </div>
       </div>
 
@@ -312,35 +312,35 @@ export default function GSAFlowV121() {
       <div className="max-w-6xl mx-auto space-y-2 mb-10">
         <div className="flex justify-between items-center mb-6 px-4">
             <div className="flex gap-2 overflow-x-auto no-scrollbar">
-              <button onClick={() => setFiltroCategoria('Todas')} className={`px-4 py-2 rounded-full text-[8px] font-black uppercase border ${filtroCategoria === 'Todas' ? 'bg-white text-black' : 'border-zinc-800 text-zinc-500'}`}>Todas</button>
+              <button onClick={() => setFiltroCategoria('Todas')} className={`px-4 py-2 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all ${filtroCategoria === 'Todas' ? 'bg-white text-black' : 'border-zinc-800 text-zinc-500'}`}>Todas</button>
               {perfil.categorias.map(cat => (
-                <button key={cat} onClick={() => setFiltroCategoria(cat)} className={`whitespace-nowrap px-4 py-2 rounded-full text-[8px] font-black uppercase border ${filtroCategoria === cat ? 'bg-blue-600' : 'border-zinc-800 text-zinc-500'}`}>{cat}</button>
+                <button key={cat} onClick={() => setFiltroCategoria(cat)} className={`whitespace-nowrap px-4 py-2 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all ${filtroCategoria === cat ? 'bg-blue-600 text-white' : 'border-zinc-800 text-zinc-500'}`}>{cat}</button>
               ))}
             </div>
-            <button onClick={exportarCSV} className="text-zinc-500 hover:text-white text-xl p-2 bg-zinc-900 border border-zinc-800 rounded-xl">📥</button>
+            <button onClick={exportarCSV} className="text-zinc-500 hover:text-white text-xl p-2 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl transition-all">📥</button>
         </div>
 
         {lancamentosExibidos.map((item) => {
           const eConfirmado = item.status === 'confirmado';
           const estaAtrasado = !eConfirmado && new Date(item.data_vencimento + 'T00:00:00') < hoje;
           return (
-            <div key={item.id} className={`flex justify-between items-center p-5 rounded-[1.8rem] border transition-all ${eConfirmado ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60' : estaAtrasado ? 'bg-red-500/10 border-red-500/40 animate-pulse-slow' : 'bg-zinc-900/10 border-zinc-800/40 hover:bg-zinc-900/20'}`}>
+            <div key={item.id} className={`flex justify-between items-center p-5 rounded-[1.8rem] border transition-all shadow-sm ${eConfirmado ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60' : estaAtrasado ? 'bg-red-500/10 border-red-500/40 animate-pulse-slow' : 'bg-zinc-900/10 border-zinc-800/40 hover:bg-zinc-900/20'}`}>
               <div className="flex items-center gap-4 text-left">
-                <span className={`text-[9px] font-mono px-3 py-1.5 rounded-lg ${estaAtrasado ? 'bg-red-500 text-white' : 'bg-zinc-800/50 text-zinc-500'}`}>{new Date(item.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</span>
+                <span className={`text-[9px] font-mono px-3 py-1.5 rounded-lg font-bold ${estaAtrasado ? 'bg-red-500 text-white' : 'bg-zinc-800/50 text-zinc-500'}`}>{new Date(item.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</span>
                 <div>
                   <div className="flex items-center gap-2">
                     <p className={`font-bold truncate max-w-[200px] ${eConfirmado ? 'line-through text-zinc-600' : 'text-zinc-200'}`}>{item.descricao}</p>
-                    {item.comprovante_url && <a href={item.comprovante_url} target="_blank" className="text-[10px]">📎</a>}
+                    {item.comprovante_url && <a href={item.comprovante_url} target="_blank" className="text-[10px] hover:scale-110 transition-transform">📎</a>}
                   </div>
-                  <p className="text-[8px] font-black uppercase text-zinc-600 tracking-widest">{item.categoria}</p>
+                  <p className="text-[8px] font-black uppercase text-zinc-600 tracking-[0.2em]">{item.categoria}</p>
                 </div>
               </div>
               <div className="flex items-center gap-6">
-                <span className={`font-black text-lg tracking-tighter ${eConfirmado ? 'text-zinc-700' : item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>R$ {Number(item.valor).toLocaleString('pt-BR')}</span>
+                <span className={`font-black text-lg tracking-tighter ${eConfirmado ? 'text-zinc-700' : item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>{item.tipo === 'entrada' ? '+' : '-'} R$ {Number(item.valor).toLocaleString('pt-BR')}</span>
                 <div className="flex gap-2">
-                  {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarLancamentos(); }} className="bg-white text-black text-[8px] font-black px-4 py-2 rounded-full h-8 uppercase">OK</button>}
-                  <button onClick={() => { setIdEmEdicao(item.id); setNovaDescricao(item.descricao); setNovoValor(item.valor.toString()); setNovaData(item.data_vencimento); setNovoTipo(item.tipo); setNovaCategoria(item.categoria); setNovoComprovante(item.comprovante_url || ''); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-zinc-600 p-2">✏️</button>
-                  <button onClick={async () => { if(confirm('Remover?')) { await supabase.from('lancamentos').delete().eq('id', item.id); carregarLancamentos(); } }} className="text-zinc-800 p-2">🗑️</button>
+                  {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarLancamentos(); }} className="bg-white text-black text-[8px] font-black px-4 py-2 rounded-full h-8 uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all">Pagar</button>}
+                  <button onClick={() => { setIdEmEdicao(item.id); setNovaDescricao(item.descricao); setNovoValor(item.valor.toString()); setNovaData(item.data_vencimento); setNovoTipo(item.tipo); setNovaCategoria(item.categoria); setNovoComprovante(item.comprovante_url || ''); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-zinc-600 hover:text-white p-2 transition-colors">✏️</button>
+                  <button onClick={async () => { if(confirm('Remover do fluxo?')) { await supabase.from('lancamentos').delete().eq('id', item.id); carregarLancamentos(); } }} className="text-zinc-800 hover:text-red-500 p-2 transition-colors">🗑️</button>
                 </div>
               </div>
             </div>
@@ -350,11 +350,11 @@ export default function GSAFlowV121() {
 
       {/* 💬 FEEDBACK DISCRETO */}
       <footer className="max-w-6xl mx-auto border-t border-zinc-900 pt-10 mt-10">
-        <div className="flex flex-col sm:flex-row items-center gap-4 bg-zinc-900/30 p-4 rounded-3xl border border-zinc-800/50">
-            <input className="flex-1 bg-transparent px-4 py-2 text-[11px] text-zinc-400 outline-none" placeholder="O que podemos melhorar?" value={feedback} onChange={(e) => setFeedback(e.target.value)} />
-            <button onClick={enviarFeedback} className="bg-zinc-800 hover:bg-blue-600 text-white px-6 py-2 rounded-2xl text-[9px] font-black uppercase transition-all">{enviandoFeedback ? '...' : 'Enviar'}</button>
+        <div className="flex flex-col sm:flex-row items-center gap-4 bg-zinc-900/30 p-4 rounded-3xl border border-zinc-800/50 shadow-inner">
+            <input className="flex-1 bg-transparent px-4 py-2 text-[11px] text-zinc-400 outline-none placeholder:text-zinc-700" placeholder="O que podemos melhorar no cockpit da GSA FLOW?" value={feedback} onChange={(e) => setFeedback(e.target.value)} />
+            <button onClick={enviarFeedback} className="bg-zinc-800 hover:bg-blue-600 text-white px-6 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all shadow-md">{enviandoFeedback ? '...' : 'Enviar Sugestão'}</button>
         </div>
-        <p className="text-[8px] text-center text-zinc-700 mt-6 uppercase tracking-[0.4em]">Gomes Serviços Ágeis © 2025</p>
+        <p className="text-[8px] text-center text-zinc-700 mt-6 uppercase font-bold tracking-[0.5em]">Gomes Serviços Ágeis © 2025</p>
       </footer>
 
       <style jsx global>{`

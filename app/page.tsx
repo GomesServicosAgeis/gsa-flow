@@ -107,7 +107,7 @@ export default function GSAFlowBrasilCompleto() {
   if (loading) return <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center text-blue-500 font-black animate-pulse uppercase italic">GSA FLOW</div>;
 
   const isAdmin = user?.email === 'gomesservicosageis@gmail.com';
-  const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira_em) < new Date();
+const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira_em) < new Date();
 
   // --- TRAVA DE ACESSO ---
   if (user && assinaturaVencida) {

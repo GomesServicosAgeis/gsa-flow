@@ -6,7 +6,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis
 // @ts-ignore
 import { Parser } from 'json2csv';
 
-export default function GSAFlowV134() {
+export default function GSAFlowV135() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
@@ -162,7 +162,13 @@ export default function GSAFlowV134() {
             <div className="flex-1 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={dadosCincoMeses}>
-                        <Tooltip cursor={{fill: 'rgba(255,255,255,0.03)'}} contentStyle={{ backgroundColor: '#000', border: 'none', borderRadius: '15px', fontSize: '10px' }} />
+                        {/* TOOLTIP CORRIGIDO: BACKGROUND PRETO E LETRA BRANCA */}
+                        <Tooltip 
+                          cursor={{fill: 'rgba(255,255,255,0.03)'}} 
+                          contentStyle={{ backgroundColor: '#000', border: '1px solid #333', borderRadius: '15px', color: '#fff' }} 
+                          itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                          labelStyle={{ color: '#666', marginBottom: '4px', fontSize: '10px' }}
+                        />
                         <Bar dataKey="receita" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                         <Bar dataKey="despesa" fill="#ef4444" radius={[4, 4, 0, 0]} />
                         <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={9} stroke="#444" />
@@ -171,7 +177,7 @@ export default function GSAFlowV134() {
             </div>
         </div>
 
-        {/* PIZZA COM LEGENDA HTML (BLINDADA CONTRA COR PRETA) */}
+        {/* PIZZA COM LEGENDA HTML E TOOLTIP FIX */}
         <div className="bg-zinc-900/40 border border-white/5 p-6 rounded-[2.5rem] h-[320px] shadow-2xl flex flex-col items-center overflow-hidden">
             <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest mb-4 text-center">Mix Categorias</p>
             <div className="flex-1 w-full relative">
@@ -182,11 +188,14 @@ export default function GSAFlowV134() {
                             <Pie data={gastosPorCategoria} innerRadius={45} outerRadius={60} paddingAngle={8} dataKey="value" stroke="none">
                                 {gastosPorCategoria.map((_, index) => <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />)}
                             </Pie>
-                            <Tooltip contentStyle={{ backgroundColor: '#000', border: 'none', borderRadius: '12px', fontSize: '9px' }} />
+                            {/* TOOLTIP CORRIGIDO PARA O GRÁFICO DE PIZZA */}
+                            <Tooltip 
+                              contentStyle={{ backgroundColor: '#000', border: '1px solid #333', borderRadius: '15px', color: '#fff' }} 
+                              itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                            />
                         </PieChart>
                     </ResponsiveContainer>
                     
-                    {/* LEGENDA MANUAL EM HTML - COR FORÇADA */}
                     <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 overflow-y-auto max-h-[80px] no-scrollbar">
                         {gastosPorCategoria.map((entry, index) => (
                             <div key={entry.name} className="flex items-center gap-2">
@@ -245,7 +254,7 @@ export default function GSAFlowV134() {
                 <div className="flex gap-4">
                     {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarLancamentos(); }} className="bg-white text-black text-[9px] font-black px-5 py-2 rounded-full uppercase tracking-widest shadow-xl">Pagar</button>}
                     <button onClick={() => { setIdEmEdicao(item.id); setNovaDescricao(item.descricao); setNovoValor(item.valor.toString()); setNovaData(item.data_vencimento); setNovoTipo(item.tipo); setNovaCategoria(item.categoria); setNovoComprovante(item.comprovante_url || ''); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-zinc-700 hover:text-white transition-colors text-xl">✏️</button>
-                    <button onClick={async () => { if(confirm('Excluir?')) { await supabase.from('lancamentos').delete().eq('id', item.id); carregarLancamentos(); } }} className="text-zinc-800 hover:text-red-500 transition-colors text-xl">🗑️</button>
+                    <button onClick={async () => { if(confirm('Remover?')) { await supabase.from('lancamentos').delete().eq('id', item.id); carregarLancamentos(); } }} className="text-zinc-800 hover:text-red-500 transition-colors text-xl">🗑️</button>
                 </div>
               </div>
             </div>

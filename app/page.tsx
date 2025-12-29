@@ -6,14 +6,12 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Ba
 // @ts-ignore
 import { Parser } from 'json2csv';
 
-export default function GSAFlowLançamento() {
-  // --- ESTADOS DO SISTEMA ---
+export default function GSAFlowRefinado() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
-  
   const [lancamentos, setLancamentos] = useState<any[]>([]);
   const [perfil, setPerfil] = useState({ 
     nome_empresa: 'GSA FLOW', 
@@ -26,8 +24,6 @@ export default function GSAFlowLançamento() {
   const [abaAtiva, setAbaAtiva] = useState<'mes' | 'ano'>('mes');
   const [filtroCategoria, setFiltroCategoria] = useState('Todas');
   const [mostrarConfig, setMostrarConfig] = useState(false);
-
-  // Estados de Cadastro de Lançamento
   const [idEmEdicao, setIdEmEdicao] = useState<string | null>(null);
   const [novaDescricao, setNovaDescricao] = useState('');
   const [novoValor, setNovoValor] = useState('');
@@ -35,17 +31,12 @@ export default function GSAFlowLançamento() {
   const [novoTipo, setNovoTipo] = useState('entrada');
   const [novaCategoria, setNovaCategoria] = useState('Freelancer');
   const [novoComprovante, setNovoComprovante] = useState('');
-
-  // Estados de Configuração de Perfil
+  const [feedback, setFeedback] = useState('');
+  const [enviandoFeedback, setEnviandoFeedback] = useState(false);
   const [editNomeEmpresa, setEditNomeEmpresa] = useState('');
   const [editMeta, setEditMeta] = useState(0);
   const [novaCatInput, setNovaCatInput] = useState('');
 
-  // Estado de Feedback
-  const [feedback, setFeedback] = useState('');
-  const [enviandoFeedback, setEnviandoFeedback] = useState(false);
-
-  // --- INICIALIZAÇÃO E CARREGAMENTO ---
   useEffect(() => {
     const sessionInit = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -64,9 +55,7 @@ export default function GSAFlowLançamento() {
       setEditMeta(prof.meta_faturamento);
     } else {
       const dataExp = new Date(); dataExp.setDate(dataExp.getDate() + 3);
-      const { data: nProf } = await supabase.from('perfis_usuarios').insert({ 
-        id: userId, expira_em: dataExp.toISOString() 
-      }).select().single();
+      const { data: nProf } = await supabase.from('perfis_usuarios').insert({ id: userId, expira_em: dataExp.toISOString() }).select().single();
       if (nProf) setPerfil(nProf);
     }
     carregarLancamentos();
@@ -76,13 +65,6 @@ export default function GSAFlowLançamento() {
     const { data } = await supabase.from('lancamentos').select('*');
     if (data) setLancamentos(data.sort((a,b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime()));
   }
-
-  // --- AÇÕES DO USUÁRIO ---
-  const handleAuth = async (e: any) => {
-    e.preventDefault();
-    const { error } = isSignUp ? await supabase.auth.signUp({email, password}) : await supabase.auth.signInWithPassword({email, password});
-    if (error) alert(error.message); else window.location.reload();
-  };
 
   const salvarLancamento = async () => {
     if (!novaDescricao || !novoValor) return;
@@ -101,15 +83,9 @@ export default function GSAFlowLançamento() {
   async function enviarFeedback() {
     if (!feedback) return;
     setEnviandoFeedback(true);
-    const { error } = await supabase.from('feedbacks').insert({
-      user_id: user.id,
-      user_email: user.email,
-      mensagem: feedback
-    });
-    if (!error) {
-      alert("Feedback enviado! A Gomes Serviços Ágeis agradece sua sugestão.");
-      setFeedback('');
-    }
+    await supabase.from('feedbacks').insert({ user_id: user.id, user_email: user.email, mensagem: feedback });
+    alert("Obrigado pelo feedback!");
+    setFeedback('');
     setEnviandoFeedback(false);
   }
 
@@ -128,47 +104,13 @@ export default function GSAFlowLançamento() {
 
   if (loading) return <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center text-blue-500 font-black animate-pulse uppercase italic">GSA FLOW</div>;
 
-  // --- LÓGICA DE ADMIN E TRAVA ---
   const isAdmin = user?.email === 'gomesservicosageis@gmail.com';
   const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira_em) < new Date();
 
-  if (user && assinaturaVencida) {
-    return (
-      <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center p-6 text-white text-center">
-        <div className="bg-zinc-900 border border-red-500/50 p-10 rounded-[3rem] w-full max-w-md shadow-2xl">
-          <div className="text-5xl mb-6">🔒</div>
-          <h1 className="text-2xl font-black text-red-500 uppercase italic mb-2 tracking-tighter">Acesso Suspenso</h1>
-          <p className="text-zinc-400 text-sm mb-8 leading-relaxed">Sua assinatura expirou. Regularize para continuar acessando o cockpit da <strong>{perfil.nome_empresa}</strong>.</p>
-          <div className="space-y-3">
-            <a href="https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=eb0e8f15cbbd4be085473bca86164037" className="block bg-blue-600 p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500 shadow-lg shadow-blue-600/20">Assinar Mensal (Cartão)</a>
-            <a href="https://mpago.li/1fcbewH" className="block bg-zinc-800 p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest border border-zinc-700 hover:bg-zinc-700">Pagar 30 dias (Pix/Boleto)</a>
-          </div>
-          <button onClick={() => window.location.reload()} className="mt-8 text-blue-500 text-[10px] font-black uppercase underline italic">Já paguei, quero entrar</button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) return (
-    <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center p-6 text-white text-center">
-      <div className="bg-zinc-900 border border-zinc-800 p-10 rounded-[3rem] w-full max-w-md shadow-2xl">
-        <h1 className="text-4xl font-black text-blue-500 mb-2 italic uppercase tracking-tighter leading-none">GSA FLOW</h1>
-        <p className="text-zinc-600 text-[9px] font-bold uppercase mb-10 tracking-[0.3em]">Business Intelligence</p>
-        <form onSubmit={handleAuth} className="space-y-4 text-left">
-          <input type="email" placeholder="E-mail" className="w-full bg-zinc-950 p-4 rounded-2xl border border-zinc-800 text-white outline-none focus:border-blue-500 text-sm" value={email} onChange={e => setEmail(e.target.value)} required />
-          <input type="password" placeholder="Senha" className="w-full bg-zinc-950 p-4 rounded-2xl border border-zinc-800 text-white outline-none focus:border-blue-500 text-sm" value={password} onChange={e => setPassword(e.target.value)} required />
-          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-2xl uppercase text-xs tracking-widest">Entrar no Cockpit</button>
-        </form>
-        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full mt-8 text-zinc-500 text-[9px] font-black uppercase tracking-widest">{isSignUp ? 'Já tem conta? Login' : 'Criar Conta Grátis'}</button>
-      </div>
-    </div>
-  );
-
-  // --- CÁLCULOS DO DASHBOARD ---
   const mesVis = dataVisualizacao.getMonth();
   const anoVis = dataVisualizacao.getFullYear();
   const hoje = new Date(); hoje.setHours(0,0,0,0);
-  const itensAtrasadosGeral = lancamentos.filter(i => i.status === 'agendado' && new Date(i.data_vencimento + 'T00:00:00') < hoje);
+  const itensAtrasadosGeral = lancamentos.filter(i => i.status !== 'confirmado' && new Date(i.data_vencimento + 'T00:00:00') < hoje);
   const lancamentosDoMes = lancamentos.filter(i => {
     const d = new Date(i.data_vencimento + 'T00:00:00');
     return d.getMonth() === mesVis && d.getFullYear() === anoVis;
@@ -184,7 +126,48 @@ export default function GSAFlowLançamento() {
     value: lancamentosDoMes.filter(i => i.tipo === 'saida' && i.categoria === cat).reduce((acc, i) => acc + Number(i.valor), 0)
   })).filter(item => item.value > 0);
 
+  const dadosAnuais = Array.from({ length: 12 }, (_, i) => {
+    const mesItems = lancamentos.filter(l => new Date(l.data_vencimento + 'T00:00:00').getMonth() === i && new Date(l.data_vencimento + 'T00:00:00').getFullYear() === anoVis);
+    return {
+      name: new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(new Date(anoVis, i)),
+      receita: mesItems.filter(l => l.tipo === 'entrada').reduce((acc, l) => acc + Number(l.valor), 0),
+      despesa: mesItems.filter(l => l.tipo === 'saida').reduce((acc, l) => acc + Number(l.valor), 0)
+    };
+  });
+
   const CORES = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899'];
+
+  if (user && assinaturaVencida) {
+    return (
+      <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center p-6 text-white text-center">
+        <div className="bg-zinc-900 border border-red-500/50 p-10 rounded-[3rem] w-full max-w-md shadow-2xl">
+          <div className="text-5xl mb-6">🔒</div>
+          <h1 className="text-2xl font-black text-red-500 uppercase italic mb-2 tracking-tighter">Acesso Suspenso</h1>
+          <p className="text-zinc-400 text-sm mb-8 leading-relaxed">Assinatura expirada para <strong>{perfil.nome_empresa}</strong>.</p>
+          <div className="space-y-3">
+            <a href="https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=eb0e8f15cbbd4be085473bca86164037" className="block bg-blue-600 p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500">Assinar Mensal</a>
+            <a href="https://mpago.li/1fcbewH" className="block bg-zinc-800 p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest border border-zinc-700">Pix 30 dias</a>
+          </div>
+          <button onClick={() => window.location.reload()} className="mt-8 text-blue-500 text-[10px] font-black uppercase underline italic">Já paguei, quero entrar</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return (
+    <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center p-6 text-white text-center">
+      <div className="bg-zinc-900 border border-zinc-800 p-10 rounded-[3rem] w-full max-w-md shadow-2xl">
+        <h1 className="text-4xl font-black text-blue-500 mb-2 italic uppercase tracking-tighter leading-none">GSA FLOW</h1>
+        <p className="text-zinc-600 text-[9px] font-bold uppercase mb-10 tracking-[0.3em]">Business Intelligence</p>
+        <form onSubmit={async (e) => { e.preventDefault(); const { error } = isSignUp ? await supabase.auth.signUp({email, password}) : await supabase.auth.signInWithPassword({email, password}); if (error) alert(error.message); else window.location.reload(); }} className="space-y-4 text-left">
+          <input type="email" placeholder="E-mail" className="w-full bg-zinc-950 p-4 rounded-2xl border border-zinc-800 text-white outline-none focus:border-blue-500 text-sm" value={email} onChange={e => setEmail(e.target.value)} required />
+          <input type="password" placeholder="Senha" className="w-full bg-zinc-950 p-4 rounded-2xl border border-zinc-800 text-white outline-none focus:border-blue-500 text-sm" value={password} onChange={e => setPassword(e.target.value)} required />
+          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-2xl uppercase text-xs tracking-widest">{isSignUp ? 'Criar Conta' : 'Entrar'}</button>
+        </form>
+        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full mt-8 text-zinc-500 text-[9px] font-black uppercase tracking-widest">{isSignUp ? 'Já tem conta? Login' : 'Criar Conta Grátis'}</button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-[#0b0e14] text-white p-4 sm:p-8 font-sans text-sm pb-24">
@@ -215,6 +198,14 @@ export default function GSAFlowLançamento() {
         </div>
       )}
 
+      {/* 🔔 ALERTA GLOBAL */}
+      {itensAtrasadosGeral.length > 0 && (
+        <div className="max-w-6xl mx-auto mb-6 bg-red-600/10 border border-red-500/30 p-4 rounded-2xl flex justify-between items-center gap-4">
+           <p className="text-[10px] font-black uppercase tracking-widest text-red-500">⚠️ {perfil.nome_empresa}, você possui {itensAtrasadosGeral.length} pendências atrasadas.</p>
+           <button onClick={() => setDataVisualizacao(new Date(itensAtrasadosGeral[0].data_vencimento + 'T00:00:00'))} className="bg-red-600 text-white px-4 py-2 rounded-xl text-[8px] font-black uppercase">Resolver Agora</button>
+        </div>
+      )}
+
       {/* HEADER */}
       <header className="flex flex-col sm:flex-row justify-between items-center mb-10 max-w-6xl mx-auto gap-4">
         <div className="text-center sm:text-left">
@@ -226,39 +217,61 @@ export default function GSAFlowLançamento() {
             </div>
         </div>
         <div className="flex gap-2">
+          <button onClick={() => setAbaAtiva('mes')} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase ${abaAtiva === 'mes' ? 'bg-blue-600' : 'bg-zinc-900'}`}>Mês</button>
+          <button onClick={() => setAbaAtiva('ano')} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase ${abaAtiva === 'ano' ? 'bg-blue-600' : 'bg-zinc-900'}`}>Ano</button>
           <button onClick={() => setMostrarConfig(true)} className="p-2 bg-zinc-900 rounded-full border border-zinc-800">⚙️</button>
           <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="px-4 py-2 bg-zinc-900 rounded-full text-[9px] font-black uppercase text-zinc-600">Sair</button>
         </div>
       </header>
 
-      {/* CARDS BI */}
-      <div className="max-w-6xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-blue-600/10 border border-blue-500/20 p-6 rounded-[2rem]"><p className="text-blue-400 text-[8px] font-black uppercase">Entradas</p><h2 className="text-2xl font-black italic">R$ {totalReceitas.toLocaleString('pt-BR')}</h2></div>
-        <div className="bg-red-600/10 border border-red-500/20 p-6 rounded-[2rem]"><p className="text-red-400 text-[8px] font-black uppercase">Saídas</p><h2 className="text-2xl font-black italic">R$ {totalDespesas.toLocaleString('pt-BR')}</h2></div>
-        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem]"><p className="text-zinc-500 text-[8px] font-black uppercase">Lucro</p><h2 className={`text-2xl font-black italic ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>R$ {lucroLiquido.toLocaleString('pt-BR')}</h2></div>
-        <div className="bg-zinc-900 border border-zinc-800/50 p-6 rounded-[2rem] border-dashed text-center"><p className="text-zinc-600 text-[8px] font-black uppercase">Meta</p><h2 className="text-2xl font-black italic text-zinc-400">R$ {perfil.meta_faturamento.toLocaleString('pt-BR')}</h2></div>
-      </div>
+      {abaAtiva === 'mes' ? (
+        <>
+          <div className="max-w-6xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="bg-blue-600/10 border border-blue-500/20 p-6 rounded-[2rem]"><p className="text-blue-400 text-[8px] font-black uppercase">Entradas</p><h2 className="text-2xl font-black italic">R$ {totalReceitas.toLocaleString('pt-BR')}</h2></div>
+            <div className="bg-red-600/10 border border-red-500/20 p-6 rounded-[2rem]"><p className="text-red-400 text-[8px] font-black uppercase">Saídas</p><h2 className="text-2xl font-black italic">R$ {totalDespesas.toLocaleString('pt-BR')}</h2></div>
+            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem]"><p className="text-zinc-500 text-[8px] font-black uppercase">Lucro</p><h2 className={`text-2xl font-black italic ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>R$ {lucroLiquido.toLocaleString('pt-BR')}</h2></div>
+            <div className="bg-zinc-900 border border-zinc-800/50 p-6 rounded-[2rem] border-dashed text-center"><p className="text-zinc-600 text-[8px] font-black uppercase">Meta</p><h2 className="text-2xl font-black italic text-zinc-400">R$ {perfil.meta_faturamento.toLocaleString('pt-BR')}</h2></div>
+          </div>
 
-      {/* GRÁFICOS */}
-      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-        <div className="lg:col-span-2 bg-zinc-900/20 border border-zinc-800 p-8 rounded-[2rem] flex flex-col justify-center">
-            <p className="text-blue-400 text-[10px] font-black uppercase mb-4 text-center">Progresso de Faturamento</p>
-            <div className="w-full bg-zinc-950 h-5 rounded-full border border-zinc-800 overflow-hidden">
-                <div className="h-full bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.3)]" style={{ width: `${Math.min((totalReceitas / perfil.meta_faturamento) * 100, 100)}%` }} />
+          <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+            {/* 📉 BARRA DE PROGRESSO REFINADA E DISCRETA */}
+            <div className="lg:col-span-2 bg-zinc-900/20 border border-zinc-800 p-8 rounded-[2rem] flex flex-col justify-center">
+                <div className="flex justify-between items-end mb-2">
+                  <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Desempenho da Meta</p>
+                  <p className="text-blue-500 text-[10px] font-black italic">{Math.round((totalReceitas / perfil.meta_faturamento) * 100)}%</p>
+                </div>
+                <div className="w-full bg-zinc-950 h-1.5 rounded-full overflow-hidden border border-zinc-800/50">
+                    <div className="h-full bg-blue-600 transition-all duration-1000" style={{ width: `${Math.min((totalReceitas / perfil.meta_faturamento) * 100, 100)}%` }} />
+                </div>
             </div>
-        </div>
-        <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[280px]">
+            <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={gastosPorCategoria} innerRadius={45} outerRadius={60} paddingAngle={5} dataKey="value" stroke="none">
+                    {gastosPorCategoria.map((_, index) => <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', fontSize: '10px' }} />
+                  <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="max-w-6xl mx-auto bg-zinc-900/20 border border-zinc-800 p-8 rounded-[2.5rem] mb-10 h-[400px]">
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={gastosPorCategoria} innerRadius={45} outerRadius={60} paddingAngle={5} dataKey="value" stroke="none">
-                {gastosPorCategoria.map((_, index) => <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />)}
-              </Pie>
-              <Tooltip contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', fontSize: '10px' }} />
-              <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold' }} />
-            </PieChart>
+            <BarChart data={dadosAnuais}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+              <XAxis dataKey="name" stroke="#a1a1aa" fontSize={10} axisLine={false} tickLine={false} />
+              <YAxis stroke="#a1a1aa" fontSize={10} axisLine={false} tickLine={false} />
+              <Tooltip cursor={{fill: '#27272a'}} contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px' }} />
+              <Legend />
+              <Bar dataKey="receita" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Receitas" />
+              <Bar dataKey="despesa" fill="#ef4444" radius={[4, 4, 0, 0]} name="Despesas" />
+            </BarChart>
           </ResponsiveContainer>
         </div>
-      </div>
+      )}
 
       {/* FORMULÁRIO */}
       <div className={`max-w-6xl mx-auto p-6 rounded-[2.5rem] border mb-10 transition-all ${idEmEdicao ? 'bg-blue-600/10 border-blue-500' : 'bg-zinc-900/40 border-zinc-800/50'}`}>
@@ -268,20 +281,20 @@ export default function GSAFlowLançamento() {
             <button onClick={() => setNovoTipo('saida')} className={`flex-1 rounded-lg text-[9px] font-black uppercase ${novoTipo === 'saida' ? 'bg-red-600' : 'text-zinc-600'}`}>Saída</button>
           </div>
           <input type="date" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white" value={novaData} onChange={e => setNovaData(e.target.value)} />
-          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white uppercase font-black" value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)}>
+          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white font-black" value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)}>
             {perfil.categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
           </select>
           <input type="text" placeholder="Link do Comprovante" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novoComprovante} onChange={e => setNovoComprovante(e.target.value)} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <input type="text" placeholder="Descrição" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
-          <input type="number" placeholder="Valor R$" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white font-mono outline-none" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
-          <button onClick={salvarLancamento} className="bg-blue-600 hover:bg-blue-500 text-white font-black h-12 rounded-xl text-[9px] uppercase tracking-widest shadow-lg shadow-blue-600/20">{idEmEdicao ? 'Salvar' : 'Lançar'}</button>
+          <input type="number" placeholder="Valor" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white font-mono outline-none" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
+          <button onClick={salvarLancamento} className="bg-blue-600 text-white font-black h-12 rounded-xl text-[9px] uppercase tracking-widest">{idEmEdicao ? 'Salvar' : 'Lançar'}</button>
         </div>
       </div>
 
       {/* LISTAGEM */}
-      <div className="max-w-6xl mx-auto space-y-2 mb-20">
+      <div className="max-w-6xl mx-auto space-y-2 mb-10">
         <div className="flex justify-between items-center mb-6 px-4">
             <div className="flex gap-2 overflow-x-auto no-scrollbar">
               <button onClick={() => setFiltroCategoria('Todas')} className={`px-4 py-2 rounded-full text-[8px] font-black uppercase border ${filtroCategoria === 'Todas' ? 'bg-white text-black' : 'border-zinc-800 text-zinc-500'}`}>Todas</button>
@@ -294,10 +307,11 @@ export default function GSAFlowLançamento() {
 
         {lancamentosExibidos.map((item) => {
           const eConfirmado = item.status === 'confirmado';
+          const estaAtrasado = !eConfirmado && new Date(item.data_vencimento + 'T00:00:00') < hoje;
           return (
-            <div key={item.id} className={`flex justify-between items-center p-5 rounded-[1.8rem] border transition-all ${eConfirmado ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60' : 'bg-zinc-900/10 border-zinc-800/40 hover:bg-zinc-900/20'}`}>
+            <div key={item.id} className={`flex justify-between items-center p-5 rounded-[1.8rem] border transition-all ${eConfirmado ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60' : estaAtrasado ? 'bg-red-500/10 border-red-500/40 animate-pulse-slow' : 'bg-zinc-900/10 border-zinc-800/40 hover:bg-zinc-900/20'}`}>
               <div className="flex items-center gap-4 text-left">
-                <span className="text-[9px] font-mono bg-zinc-800/50 px-3 py-1.5 rounded-lg text-zinc-500">{new Date(item.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</span>
+                <span className={`text-[9px] font-mono px-3 py-1.5 rounded-lg ${estaAtrasado ? 'bg-red-500 text-white' : 'bg-zinc-800/50 text-zinc-500'}`}>{new Date(item.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</span>
                 <div>
                   <div className="flex items-center gap-2">
                     <p className={`font-bold truncate max-w-[200px] ${eConfirmado ? 'line-through text-zinc-600' : 'text-zinc-200'}`}>{item.descricao}</p>
@@ -307,11 +321,11 @@ export default function GSAFlowLançamento() {
                 </div>
               </div>
               <div className="flex items-center gap-6">
-                <span className={`font-black text-lg tracking-tighter ${eConfirmado ? 'text-zinc-700' : item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>{item.tipo === 'entrada' ? '+' : '-'} R$ {Number(item.valor).toLocaleString('pt-BR')}</span>
+                <span className={`font-black text-lg tracking-tighter ${eConfirmado ? 'text-zinc-700' : item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>R$ {Number(item.valor).toLocaleString('pt-BR')}</span>
                 <div className="flex gap-2">
                   {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarLancamentos(); }} className="bg-white text-black text-[8px] font-black px-4 py-2 rounded-full h-8 uppercase">OK</button>}
-                  <button onClick={() => { setIdEmEdicao(item.id); setNovaDescricao(item.descricao); setNovoValor(item.valor.toString()); setNovaData(item.data_vencimento); setNovoTipo(item.tipo); setNovaCategoria(item.categoria); setNovoComprovante(item.comprovante_url || ''); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-zinc-600 hover:text-white p-2">✏️</button>
-                  <button onClick={async () => { if(confirm('Remover?')) { await supabase.from('lancamentos').delete().eq('id', item.id); carregarLancamentos(); } }} className="text-zinc-800 hover:text-red-500 p-2">🗑️</button>
+                  <button onClick={() => { setIdEmEdicao(item.id); setNovaDescricao(item.descricao); setNovoValor(item.valor.toString()); setNovaData(item.data_vencimento); setNovoTipo(item.tipo); setNovaCategoria(item.categoria); setNovoComprovante(item.comprovante_url || ''); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-zinc-600 p-2">✏️</button>
+                  <button onClick={async () => { if(confirm('Remover?')) { await supabase.from('lancamentos').delete().eq('id', item.id); carregarLancamentos(); } }} className="text-zinc-800 p-2">🗑️</button>
                 </div>
               </div>
             </div>
@@ -319,26 +333,20 @@ export default function GSAFlowLançamento() {
         })}
       </div>
 
-      {/* NOVO CAMPO DE FEEDBACK */}
-      <div className="max-w-6xl mx-auto p-10 bg-zinc-900/20 border border-zinc-800/50 rounded-[3rem] text-center">
-          <h3 className="text-blue-500 font-black uppercase italic text-sm mb-6 tracking-widest">GSA FLOW Feedback</h3>
-          <textarea 
-            className="w-full bg-zinc-950 p-6 rounded-3xl border border-zinc-800 text-white outline-none focus:border-blue-500 text-sm mb-6 transition-all"
-            placeholder="O que você achou do sistema? Deixe sua sugestão ou crítica aqui..."
-            value={feedback}
-            onChange={(e) => setFeedback(e.target.value)}
-            rows={4}
-          />
-          <button 
-            onClick={enviarFeedback}
-            disabled={enviandoFeedback}
-            className="bg-blue-600 hover:bg-blue-500 px-10 py-4 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20"
-          >
-            {enviandoFeedback ? 'Enviando...' : 'Enviar Sugestão'}
-          </button>
-      </div>
+      {/* 💬 FEEDBACK DISCRETO */}
+      <footer className="max-w-6xl mx-auto border-t border-zinc-900 pt-10 mt-10">
+        <div className="flex flex-col sm:flex-row items-center gap-4 bg-zinc-900/30 p-4 rounded-3xl border border-zinc-800/50">
+            <input className="flex-1 bg-transparent px-4 py-2 text-[11px] text-zinc-400 outline-none" placeholder="O que podemos melhorar?" value={feedback} onChange={(e) => setFeedback(e.target.value)} />
+            <button onClick={enviarFeedback} className="bg-zinc-800 hover:bg-blue-600 text-white px-6 py-2 rounded-2xl text-[9px] font-black uppercase transition-all">{enviandoFeedback ? '...' : 'Enviar'}</button>
+        </div>
+        <p className="text-[8px] text-center text-zinc-700 mt-6 uppercase tracking-[0.4em]">Gomes Serviços Ágeis © 2025</p>
+      </footer>
 
-      <style jsx global>{` .no-scrollbar::-webkit-scrollbar { display: none; } `}</style>
+      <style jsx global>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        @keyframes pulse-red { 0%, 100% { border-color: rgba(239, 68, 68, 0.4); } 50% { border-color: rgba(239, 68, 68, 0.9); } }
+        .animate-pulse-slow { animation: pulse-red 2s infinite; }
+      `}</style>
     </div>
   );
 }

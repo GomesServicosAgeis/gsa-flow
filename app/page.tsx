@@ -6,7 +6,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Ba
 // @ts-ignore
 import { Parser } from 'json2csv';
 
-export default function GSAFlowV123() {
+export default function GSAFlowV124() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
@@ -31,6 +31,7 @@ export default function GSAFlowV123() {
   const [novoTipo, setNovoTipo] = useState('entrada');
   const [novaCategoria, setNovaCategoria] = useState('Freelancer');
   const [novoComprovante, setNovoComprovante] = useState('');
+  const [novoParcelas, setNovoParcelas] = useState(1); // NOVO: Controle de recorrência
   const [feedback, setFeedback] = useState('');
   const [enviandoFeedback, setEnviandoFeedback] = useState(false);
   const [editNomeEmpresa, setEditNomeEmpresa] = useState('');
@@ -71,19 +72,41 @@ export default function GSAFlowV123() {
   const salvarLancamento = async () => {
     if (!novaDescricao || !novoValor) return;
     const valLimpo = Number(novoValor.toString().replace(',', '.'));
-    const payload = { 
-      descricao: novaDescricao, 
-      valor: valLimpo, 
-      tipo: novoTipo, 
-      data_vencimento: novaData, 
-      categoria: novaCategoria, 
-      user_id: user.id, 
-      comprovante_url: novoComprovante || null,
-      status: 'agendado'
-    };
-    if (idEmEdicao) await supabase.from('lancamentos').update(payload).eq('id', idEmEdicao);
-    else await supabase.from('lancamentos').insert(payload);
-    setNovaDescricao(''); setNovoValor(''); setIdEmEdicao(null); setNovoComprovante(''); carregarLancamentos();
+    
+    // LÓGICA DE RECORRÊNCIA
+    const novosLancamentos = [];
+    const dataBase = new Date(novaData + 'T00:00:00');
+
+    if (idEmEdicao) {
+        // Se estiver editando, altera apenas um
+        const payload = { 
+            descricao: novaDescricao, valor: valLimpo, tipo: novoTipo, 
+            data_vencimento: novaData, categoria: novaCategoria, 
+            user_id: user.id, comprovante_url: novoComprovante || null, status: 'agendado'
+        };
+        await supabase.from('lancamentos').update(payload).eq('id', idEmEdicao);
+    } else {
+        // Se for novo, verifica se tem repetição
+        for (let i = 0; i < novoParcelas; i++) {
+            const dataVenc = new Date(dataBase);
+            dataVenc.setMonth(dataBase.getMonth() + i);
+            
+            novosLancamentos.push({
+                descricao: `${novaDescricao} ${novoParcelas > 1 ? `(${i + 1}/${novoParcelas})` : ''}`.trim(),
+                valor: valLimpo,
+                tipo: novoTipo,
+                data_vencimento: dataVenc.toISOString().split('T')[0],
+                categoria: novaCategoria,
+                user_id: user.id,
+                comprovante_url: novoComprovante || null,
+                status: 'agendado'
+            });
+        }
+        await supabase.from('lancamentos').insert(novosLancamentos);
+    }
+
+    setNovaDescricao(''); setNovoValor(''); setIdEmEdicao(null); setNovoComprovante(''); setNovoParcelas(1);
+    carregarLancamentos();
   };
 
   async function atualizarPerfil() {
@@ -96,7 +119,7 @@ export default function GSAFlowV123() {
     if (!feedback) return;
     setEnviandoFeedback(true);
     await supabase.from('feedbacks').insert({ user_id: user.id, user_email: user.email, mensagem: feedback });
-    alert("Feedback enviado com sucesso!");
+    alert("Feedback enviado! A GSA agradece.");
     setFeedback('');
     setEnviandoFeedback(false);
   }
@@ -119,18 +142,16 @@ export default function GSAFlowV123() {
   const isAdmin = user?.email === 'gomesservicosageis@gmail.com';
   const assinaturaVencida = !isAdmin && perfil.expira_em && new Date(perfil.expira_em) < new Date();
 
-  // --- LÓGICA DE DADOS REFORÇADA ---
+  // --- LÓGICA DE DADOS ---
   const mesVis = dataVisualizacao.getMonth();
   const anoVis = dataVisualizacao.getFullYear();
   const hoje = new Date(); hoje.setHours(0,0,0,0);
-  
   const itensAtrasadosGeral = lancamentos.filter(i => i.status !== 'confirmado' && new Date(i.data_vencimento + 'T00:00:00') < hoje);
 
   const lancamentosDoMes = lancamentos.filter(i => {
     const d = new Date(i.data_vencimento + 'T00:00:00');
     return d.getMonth() === mesVis && d.getFullYear() === anoVis;
   });
-
   const lancamentosExibidos = filtroCategoria === 'Todas' ? lancamentosDoMes : lancamentosDoMes.filter(i => i.categoria === filtroCategoria);
 
   const totalReceitas = lancamentosDoMes.filter(i => i.tipo === 'entrada').reduce((acc, i) => acc + (Number(i.valor) || 0), 0);
@@ -144,8 +165,8 @@ export default function GSAFlowV123() {
 
   const dadosAnuais = Array.from({ length: 12 }, (_, i) => {
     const mesItems = lancamentos.filter(l => {
-      const d = new Date(l.data_vencimento + 'T00:00:00');
-      return d.getMonth() === i && d.getFullYear() === anoVis;
+        const d = new Date(l.data_vencimento + 'T00:00:00');
+        return d.getMonth() === i && d.getFullYear() === anoVis;
     });
     return {
       name: new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(new Date(anoVis, i)),
@@ -162,7 +183,7 @@ export default function GSAFlowV123() {
           <h1 className="text-2xl font-black text-red-500 uppercase italic mb-2 tracking-tighter">Acesso Suspenso</h1>
           <p className="text-zinc-400 text-sm mb-8 leading-relaxed">Assinatura expirada para <strong>{perfil.nome_empresa}</strong>.</p>
           <div className="space-y-3">
-            <a href="https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=eb0e8f15cbbd4be085473bca86164037" className="block bg-blue-600 p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500 shadow-lg shadow-blue-600/20">Assinar Mensal</a>
+            <a href="https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=eb0e8f15cbbd4be085473bca86164037" className="block bg-blue-600 p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500">Assinar Mensal</a>
             <a href="https://mpago.li/1fcbewH" className="block bg-zinc-800 p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest border border-zinc-700">Pix 30 dias</a>
           </div>
           <button onClick={() => window.location.reload()} className="mt-8 text-blue-500 text-[10px] font-black uppercase underline italic">Já paguei, quero entrar</button>
@@ -195,7 +216,7 @@ export default function GSAFlowV123() {
           <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2.5rem] w-full max-w-lg shadow-2xl">
             <h2 className="text-xl font-black text-blue-500 uppercase italic mb-6">Configurações</h2>
             <div className="space-y-4 mb-8 text-left">
-              <input type="text" placeholder="Nome da Empresa" className="w-full bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-white outline-none" value={editNomeEmpresa} onChange={e => setEditNomeEmpresa(editNomeEmpresa)} />
+              <input type="text" placeholder="Nome da Empresa" className="w-full bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-white outline-none" value={editNomeEmpresa} onChange={e => setEditNomeEmpresa(e.target.value)} />
               <input type="number" placeholder="Meta" className="w-full bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-white outline-none" value={editMeta} onChange={e => setEditMeta(Number(e.target.value))} />
               <div className="flex gap-2">
                 <input type="text" placeholder="Nova Categoria" className="flex-1 bg-zinc-950 p-2 rounded-xl border border-zinc-800 text-white outline-none" value={novaCatInput} onChange={e => setNovaCatInput(e.target.value)} />
@@ -219,7 +240,7 @@ export default function GSAFlowV123() {
       {itensAtrasadosGeral.length > 0 && (
         <div className="max-w-6xl mx-auto mb-6 bg-red-600/10 border border-red-500/30 p-4 rounded-2xl flex justify-between items-center gap-4 animate-in fade-in slide-in-from-top duration-500">
            <p className="text-[10px] font-black uppercase tracking-widest text-red-500">⚠️ {perfil.nome_empresa}, você possui {itensAtrasadosGeral.length} pendências atrasadas.</p>
-           <button onClick={() => setDataVisualizacao(new Date(itensAtrasadosGeral[0].data_vencimento + 'T00:00:00'))} className="bg-red-600 text-white px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest">Resolver Agora</button>
+           <button onClick={() => setDataVisualizacao(new Date(itensAtrasadosGeral[0].data_vencimento + 'T00:00:00'))} className="bg-red-600 text-white px-4 py-2 rounded-xl text-[8px] font-black uppercase">Resolver Agora</button>
         </div>
       )}
 
@@ -234,20 +255,20 @@ export default function GSAFlowV123() {
             </div>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setAbaAtiva('mes')} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${abaAtiva === 'mes' ? 'bg-blue-600' : 'bg-zinc-900'}`}>Mês</button>
-          <button onClick={() => setAbaAtiva('ano')} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${abaAtiva === 'ano' ? 'bg-blue-600' : 'bg-zinc-900'}`}>Ano</button>
+          <button onClick={() => setAbaAtiva('mes')} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase ${abaAtiva === 'mes' ? 'bg-blue-600' : 'bg-zinc-900'}`}>Mês</button>
+          <button onClick={() => setAbaAtiva('ano')} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase ${abaAtiva === 'ano' ? 'bg-blue-600' : 'bg-zinc-900'}`}>Ano</button>
           <button onClick={() => setMostrarConfig(true)} className="p-2 bg-zinc-900 rounded-full border border-zinc-800">⚙️</button>
-          <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="px-4 py-2 bg-zinc-900 rounded-full text-[9px] font-black uppercase text-zinc-600 tracking-widest">Sair</button>
+          <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="px-4 py-2 bg-zinc-900 rounded-full text-[9px] font-black uppercase text-zinc-600">Sair</button>
         </div>
       </header>
 
       {abaAtiva === 'mes' ? (
         <>
           <div className="max-w-6xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-blue-600/10 border border-blue-500/20 p-6 rounded-[2rem] shadow-lg shadow-blue-600/5"><p className="text-blue-400 text-[8px] font-black uppercase tracking-widest">Entradas</p><h2 className="text-2xl font-black italic">R$ {totalReceitas.toLocaleString('pt-BR')}</h2></div>
-            <div className="bg-red-600/10 border border-red-500/20 p-6 rounded-[2rem] shadow-lg shadow-red-600/5"><p className="text-red-400 text-[8px] font-black uppercase tracking-widest">Saídas</p><h2 className="text-2xl font-black italic">R$ {totalDespesas.toLocaleString('pt-BR')}</h2></div>
-            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem] shadow-xl"><p className="text-zinc-500 text-[8px] font-black uppercase tracking-widest">Saldo</p><h2 className={`text-2xl font-black italic ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>R$ {lucroLiquido.toLocaleString('pt-BR')}</h2></div>
-            <div className="bg-zinc-900 border border-zinc-800/50 p-6 rounded-[2rem] border-dashed text-center shadow-xl"><p className="text-zinc-600 text-[8px] font-black uppercase tracking-widest">Meta</p><h2 className="text-2xl font-black italic text-zinc-400">R$ {perfil.meta_faturamento.toLocaleString('pt-BR')}</h2></div>
+            <div className="bg-blue-600/10 border border-blue-500/20 p-6 rounded-[2rem] shadow-lg shadow-blue-600/5"><p className="text-blue-400 text-[8px] font-black uppercase">Entradas</p><h2 className="text-2xl font-black italic">R$ {totalReceitas.toLocaleString('pt-BR')}</h2></div>
+            <div className="bg-red-600/10 border border-red-500/20 p-6 rounded-[2rem] shadow-lg shadow-red-600/5"><p className="text-red-400 text-[8px] font-black uppercase">Saídas</p><h2 className="text-2xl font-black italic">R$ {totalDespesas.toLocaleString('pt-BR')}</h2></div>
+            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem] shadow-xl"><p className="text-zinc-500 text-[8px] font-black uppercase">Saldo Previsto</p><h2 className={`text-2xl font-black italic ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>R$ {lucroLiquido.toLocaleString('pt-BR')}</h2></div>
+            <div className="bg-zinc-900 border border-zinc-800/50 p-6 rounded-[2rem] border-dashed text-center shadow-xl"><p className="text-zinc-600 text-[8px] font-black uppercase">Meta</p><h2 className="text-2xl font-black italic text-zinc-400">R$ {perfil.meta_faturamento.toLocaleString('pt-BR')}</h2></div>
           </div>
 
           <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
@@ -260,8 +281,6 @@ export default function GSAFlowV123() {
                     <div className="h-full bg-blue-600 transition-all duration-1000 shadow-[0_0_10px_rgba(37,99,235,0.4)]" style={{ width: `${Math.min((totalReceitas / perfil.meta_faturamento) * 100, 100)}%` }} />
                 </div>
             </div>
-            
-            {/* CONTAINER DO GRÁFICO COM AVISO DE DADOS VAZIOS */}
             <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] h-[300px] w-full shadow-2xl flex items-center justify-center">
               {gastosPorCategoria.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
@@ -274,10 +293,7 @@ export default function GSAFlowV123() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="text-center">
-                  <p className="text-zinc-600 text-[8px] font-black uppercase tracking-[0.2em]">Sem despesas no mês</p>
-                  <p className="text-[10px] text-zinc-800 italic mt-1">Lançamentos de entrada não geram pizza.</p>
-                </div>
+                <div className="text-center"><p className="text-zinc-600 text-[8px] font-black uppercase tracking-[0.2em]">Sem despesas no mês</p></div>
               )}
             </div>
           </div>
@@ -298,38 +314,57 @@ export default function GSAFlowV123() {
         </div>
       )}
 
-      {/* FORMULÁRIO */}
+      {/* FORMULÁRIO COM RECORRÊNCIA */}
       <div className={`max-w-6xl mx-auto p-6 rounded-[2.5rem] border mb-10 transition-all shadow-2xl ${idEmEdicao ? 'bg-blue-600/10 border-blue-500' : 'bg-zinc-900/40 border-zinc-800/50'}`}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
           <div className="flex bg-zinc-950 rounded-xl p-1 h-12">
-            <button onClick={() => setNovoTipo('entrada')} className={`flex-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${novoTipo === 'entrada' ? 'bg-blue-600 text-white' : 'text-zinc-600'}`}>Receita</button>
-            <button onClick={() => setNovoTipo('saida')} className={`flex-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${novoTipo === 'saida' ? 'bg-red-600 text-white' : 'text-zinc-600'}`}>Saída</button>
+            <button onClick={() => setNovoTipo('entrada')} className={`flex-1 rounded-lg text-[9px] font-black uppercase ${novoTipo === 'entrada' ? 'bg-blue-600 text-white' : 'text-zinc-600'}`}>Receita</button>
+            <button onClick={() => setNovoTipo('saida')} className={`flex-1 rounded-lg text-[9px] font-black uppercase ${novoTipo === 'saida' ? 'bg-red-600 text-white' : 'text-zinc-600'}`}>Saída</button>
           </div>
           <input type="date" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novaData} onChange={e => setNovaData(e.target.value)} />
-          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white font-black" value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)}>
+          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white font-black uppercase outline-none" value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)}>
             {perfil.categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
           </select>
-          <input type="text" placeholder="Link do Comprovante" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novoComprovante} onChange={e => setNovoComprovante(e.target.value)} />
+          {/* CAMPO DE RECORRÊNCIA */}
+          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white font-black uppercase outline-none" value={novoParcelas} onChange={e => setNovoParcelas(Number(e.target.value))} disabled={!!idEmEdicao}>
+            <option value={1}>Lançamento Único</option>
+            <option value={2}>Repetir 2x (Mensal)</option>
+            <option value={3}>Repetir 3x (Mensal)</option>
+            <option value={6}>Repetir 6x (Mensal)</option>
+            <option value={12}>Repetir 12x (Mensal)</option>
+          </select>
+          <input type="text" placeholder="Comprovante (Link)" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novoComprovante} onChange={e => setNovoComprovante(e.target.value)} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          <input type="text" placeholder="Descrição" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
+          <input type="text" placeholder="Descrição" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none focus:border-blue-500" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
           <input type="number" placeholder="Valor" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
-          <button onClick={salvarLancamento} className="bg-blue-600 text-white font-black h-12 rounded-xl text-[9px] uppercase tracking-widest">{idEmEdicao ? 'Salvar' : 'Lançar'}</button>
+          <button onClick={salvarLancamento} className="bg-blue-600 hover:bg-blue-500 text-white font-black h-12 rounded-xl text-[9px] uppercase tracking-widest transition-all">{idEmEdicao ? 'Salvar Alteração' : 'Lançar no Cockpit'}</button>
         </div>
       </div>
 
       {/* LISTAGEM */}
       <div className="max-w-6xl mx-auto space-y-2 mb-10">
+        <div className="flex justify-between items-center mb-6 px-4">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar">
+              <button onClick={() => setFiltroCategoria('Todas')} className={`px-4 py-2 rounded-full text-[8px] font-black uppercase border transition-all ${filtroCategoria === 'Todas' ? 'bg-white text-black' : 'border-zinc-800 text-zinc-500'}`}>Todas</button>
+              {perfil.categorias.map(cat => (
+                <button key={cat} onClick={() => setFiltroCategoria(cat)} className={`whitespace-nowrap px-4 py-2 rounded-full text-[8px] font-black uppercase border transition-all ${filtroCategoria === cat ? 'bg-blue-600 text-white' : 'border-zinc-800 text-zinc-500'}`}>{cat}</button>
+              ))}
+            </div>
+            <button onClick={exportarCSV} className="text-zinc-500 hover:text-white text-xl p-2 bg-zinc-900 border border-zinc-800 rounded-xl">📥</button>
+        </div>
+
         {lancamentosExibidos.map((item) => {
           const eConfirmado = item.status === 'confirmado';
           const estaAtrasado = !eConfirmado && new Date(item.data_vencimento + 'T00:00:00') < hoje;
           return (
-            <div key={item.id} className={`flex justify-between items-center p-5 rounded-[1.8rem] border transition-all ${eConfirmado ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60' : estaAtrasado ? 'bg-red-500/10 border-red-500/40 animate-pulse-slow' : 'bg-zinc-900/10 border-zinc-800/40 hover:bg-zinc-900/20'}`}>
+            <div key={item.id} className={`flex justify-between items-center p-5 rounded-[1.8rem] border transition-all shadow-sm ${eConfirmado ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60' : estaAtrasado ? 'bg-red-500/10 border-red-500/40 animate-pulse-slow' : 'bg-zinc-900/10 border-zinc-800/40 hover:bg-zinc-900/20'}`}>
               <div className="flex items-center gap-4 text-left">
                 <span className={`text-[9px] font-mono px-3 py-1.5 rounded-lg ${estaAtrasado ? 'bg-red-500 text-white' : 'bg-zinc-800/50 text-zinc-500'}`}>{new Date(item.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</span>
                 <div>
                   <div className="flex items-center gap-2">
                     <p className={`font-bold truncate max-w-[200px] ${eConfirmado ? 'line-through text-zinc-600' : 'text-zinc-200'}`}>{item.descricao}</p>
+                    {item.comprovante_url && <a href={item.comprovante_url} target="_blank" className="text-[10px]">📎</a>}
                   </div>
                   <p className="text-[8px] font-black uppercase text-zinc-600 tracking-widest">{item.categoria}</p>
                 </div>
@@ -337,7 +372,7 @@ export default function GSAFlowV123() {
               <div className="flex items-center gap-6">
                 <span className={`font-black text-lg tracking-tighter ${eConfirmado ? 'text-zinc-700' : item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>R$ {Number(item.valor).toLocaleString('pt-BR')}</span>
                 <div className="flex gap-2">
-                  {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarLancamentos(); }} className="bg-white text-black text-[8px] font-black px-4 py-2 rounded-full h-8 uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">Pagar</button>}
+                  {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarLancamentos(); }} className="bg-white text-black text-[8px] font-black px-4 py-2 rounded-full h-8 uppercase tracking-widest">Pagar</button>}
                   <button onClick={() => { setIdEmEdicao(item.id); setNovaDescricao(item.descricao); setNovoValor(item.valor.toString()); setNovaData(item.data_vencimento); setNovoTipo(item.tipo); setNovaCategoria(item.categoria); setNovoComprovante(item.comprovante_url || ''); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-zinc-600 p-2">✏️</button>
                   <button onClick={async () => { if(confirm('Remover?')) { await supabase.from('lancamentos').delete().eq('id', item.id); carregarLancamentos(); } }} className="text-zinc-800 p-2">🗑️</button>
                 </div>
@@ -349,8 +384,8 @@ export default function GSAFlowV123() {
 
       <footer className="max-w-6xl mx-auto border-t border-zinc-900 pt-10 mt-10">
         <div className="flex flex-col sm:flex-row items-center gap-4 bg-zinc-900/30 p-4 rounded-3xl border border-zinc-800/50 shadow-inner">
-            <input className="flex-1 bg-transparent px-4 py-2 text-[11px] text-zinc-400 outline-none" placeholder="O que podemos melhorar?" value={feedback} onChange={(e) => setFeedback(e.target.value)} />
-            <button onClick={enviarFeedback} className="bg-zinc-800 hover:bg-blue-600 text-white px-6 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all">{enviandoFeedback ? '...' : 'Enviar'}</button>
+            <input className="flex-1 bg-transparent px-4 py-2 text-[11px] text-zinc-400 outline-none" placeholder="O que podemos melhorar no cockpit?" value={feedback} onChange={(e) => setFeedback(e.target.value)} />
+            <button onClick={enviarFeedback} className="bg-zinc-800 hover:bg-blue-600 text-white px-6 py-2 rounded-2xl text-[9px] font-black uppercase transition-all tracking-widest">{enviandoFeedback ? '...' : 'Enviar'}</button>
         </div>
         <p className="text-[8px] text-center text-zinc-700 mt-6 uppercase tracking-[0.4em]">Gomes Serviços Ágeis © 2025</p>
       </footer>

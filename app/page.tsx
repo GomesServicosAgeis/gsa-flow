@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
 // @ts-ignore
 import { Parser } from 'json2csv';
 
-export default function GSAFlowV133() {
+export default function GSAFlowV134() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
@@ -32,7 +32,6 @@ export default function GSAFlowV133() {
 
   const CORES = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899'];
 
-  // FUNÇÃO DE FORMATAÇÃO MONETÁRIA BRASILEIRA
   const formatarMoeda = (valor: number) => {
     return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
@@ -120,19 +119,6 @@ export default function GSAFlowV133() {
     };
   });
 
-  if (!user && !loading) return (
-    <div className="min-h-screen bg-[#06080a] flex items-center justify-center p-6 text-white text-center">
-      <div className="bg-zinc-900 border border-white/5 p-10 rounded-[3rem] w-full max-w-md shadow-2xl">
-        <h1 className="text-4xl font-black text-blue-500 mb-10 italic uppercase">GSA FLOW</h1>
-        <form onSubmit={async (e) => { e.preventDefault(); const { error } = isSignUp ? await supabase.auth.signUp({email, password}) : await supabase.auth.signInWithPassword({email, password}); if (error) alert(error.message); else window.location.reload(); }} className="space-y-4">
-          <input type="email" placeholder="E-mail" className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white outline-none" value={email} onChange={e => setEmail(e.target.value)} required />
-          <input type="password" placeholder="Senha" className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white outline-none" value={password} onChange={e => setPassword(e.target.value)} required />
-          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-2xl uppercase text-xs tracking-widest">Acessar Cockpit</button>
-        </form>
-      </div>
-    </div>
-  );
-
   if (loading) return <div className="min-h-screen bg-[#06080a] flex items-center justify-center text-blue-500 font-black animate-pulse uppercase italic">GSA FLOW</div>;
 
   return (
@@ -144,35 +130,30 @@ export default function GSAFlowV133() {
         <div className="flex gap-4 items-center bg-zinc-900/40 p-2 px-6 rounded-full border border-white/5">
             <div className="flex items-center gap-4 text-zinc-500 text-[10px] font-black uppercase tracking-widest">
                 <button onClick={() => setDataVisualizacao(new Date(dataVisualizacao.setMonth(dataVisualizacao.getMonth() - 1)))}>◀</button>
-                <span className="min-w-[140px] text-center text-zinc-200">{new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(dataVisualizacao)}</span>
+                <span className="min-w-[140px] text-center text-zinc-200 uppercase">{new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(dataVisualizacao)}</span>
                 <button onClick={() => setDataVisualizacao(new Date(dataVisualizacao.setMonth(dataVisualizacao.getMonth() + 1)))}>▶</button>
             </div>
-            <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-[9px] font-black uppercase text-zinc-600">Sair</button>
         </div>
       </header>
 
-      {/* CARDS VALORES */}
+      {/* CARDS */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] shadow-xl"><p className="text-blue-500 text-[8px] font-black uppercase mb-1">Entradas</p><h2 className="text-2xl font-black italic text-white">{formatarMoeda(totalReceitas)}</h2></div>
         <div className="bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] shadow-xl"><p className="text-red-500 text-[8px] font-black uppercase mb-1">Saídas</p><h2 className="text-2xl font-black italic text-white">{formatarMoeda(totalDespesas)}</h2></div>
         <div className="bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] shadow-xl"><p className="text-zinc-500 text-[8px] font-black uppercase mb-1">Saldo Previsto</p><h2 className={`text-2xl font-black italic ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>{formatarMoeda(lucroLiquido)}</h2></div>
-        <div className="bg-zinc-900/10 border border-dashed border-white/10 p-6 rounded-[2.5rem] flex items-center justify-center text-center"><p className="text-zinc-700 text-[8px] font-black uppercase italic tracking-widest">Meta: <br/>{formatarMoeda(perfil.meta_faturamento)}</p></div>
+        <div className="bg-zinc-900/10 border border-dashed border-white/10 p-6 rounded-[2.5rem] flex items-center justify-center text-center"><p className="text-zinc-700 text-[8px] font-black uppercase italic tracking-widest">Meta: {formatarMoeda(perfil.meta_faturamento)}</p></div>
       </div>
 
       {/* TRIPLE COCKPIT */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        
         {/* BATERIA */}
         <div className="bg-zinc-900/40 border border-white/5 p-8 rounded-[2.5rem] h-[320px] flex flex-col items-center justify-between shadow-2xl">
-            <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Battery Meta</p>
+            <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Battery Status</p>
             <div className="relative w-16 h-44 bg-black/60 rounded-2xl border border-white/10 overflow-hidden flex flex-col-reverse shadow-inner">
-                <div 
-                    className="w-full bg-gradient-to-t from-blue-700 to-blue-400 transition-all duration-1000 shadow-[0_0_20px_rgba(59,130,246,0.5)]"
-                    style={{ height: `${Math.min(porcentagemMeta, 100)}%` }}
-                />
+                <div className="w-full bg-gradient-to-t from-blue-700 to-blue-400 transition-all duration-1000 shadow-[0_0_20px_rgba(59,130,246,0.5)]" style={{ height: `${Math.min(porcentagemMeta, 100)}%` }} />
                 <div className="absolute inset-0 flex items-center justify-center"><span className="text-white text-xl font-black italic mix-blend-difference">{porcentagemMeta}%</span></div>
             </div>
-            <p className="text-blue-500/50 text-[8px] font-black uppercase tracking-widest italic tracking-[0.2em]">Efficiency Status</p>
+            <p className="text-blue-500/50 text-[8px] font-black uppercase tracking-widest italic">Target efficiency</p>
         </div>
 
         {/* TENDÊNCIA */}
@@ -190,24 +171,31 @@ export default function GSAFlowV133() {
             </div>
         </div>
 
-        {/* PIZZA (FIX LEGEND COLOR) */}
-        <div className="bg-zinc-900/40 border border-white/5 p-6 rounded-[2.5rem] h-[320px] shadow-2xl flex flex-col items-center">
+        {/* PIZZA COM LEGENDA HTML (BLINDADA CONTRA COR PRETA) */}
+        <div className="bg-zinc-900/40 border border-white/5 p-6 rounded-[2.5rem] h-[320px] shadow-2xl flex flex-col items-center overflow-hidden">
             <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest mb-4 text-center">Mix Categorias</p>
-            <div className="flex-1 w-full">
+            <div className="flex-1 w-full relative">
                 {gastosPorCategoria.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <>
+                    <ResponsiveContainer width="100%" height="70%">
                         <PieChart>
-                            <Pie data={gastosPorCategoria} innerRadius={55} outerRadius={70} paddingAngle={8} dataKey="value" stroke="none">
+                            <Pie data={gastosPorCategoria} innerRadius={45} outerRadius={60} paddingAngle={8} dataKey="value" stroke="none">
                                 {gastosPorCategoria.map((_, index) => <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />)}
                             </Pie>
                             <Tooltip contentStyle={{ backgroundColor: '#000', border: 'none', borderRadius: '12px', fontSize: '9px' }} />
-                            {/* CORREÇÃO DEFINITIVA DA COR DA LEGENDA */}
-                            <Legend 
-                                verticalAlign="bottom" 
-                                formatter={(value) => <span style={{ color: '#a1a1aa', fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }}>{value}</span>}
-                            />
                         </PieChart>
                     </ResponsiveContainer>
+                    
+                    {/* LEGENDA MANUAL EM HTML - COR FORÇADA */}
+                    <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 overflow-y-auto max-h-[80px] no-scrollbar">
+                        {gastosPorCategoria.map((entry, index) => (
+                            <div key={entry.name} className="flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CORES[index % CORES.length] }} />
+                                <span className="text-[9px] font-bold uppercase tracking-tight text-zinc-400">{entry.name}</span>
+                            </div>
+                        ))}
+                    </div>
+                    </>
                 ) : (
                     <div className="h-full flex items-center justify-center text-zinc-800 text-[8px] font-black uppercase tracking-widest italic">No Data</div>
                 )}
@@ -238,7 +226,7 @@ export default function GSAFlowV133() {
         </div>
       </div>
 
-      {/* LISTAGEM MOBILE RESPONSIVE */}
+      {/* LISTAGEM */}
       <div className="max-w-7xl mx-auto space-y-3 mb-20">
         {lancamentosDoMes.map((item) => {
           const eConfirmado = item.status === 'confirmado';
@@ -246,7 +234,7 @@ export default function GSAFlowV133() {
           return (
             <div key={item.id} className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-6 rounded-[2.5rem] border transition-all duration-300 gap-4 shadow-xl ${eConfirmado ? 'bg-black/20 border-white/5 opacity-50' : estaAtrasado ? 'bg-red-500/5 border-red-500/30 animate-pulse-slow' : 'bg-zinc-900/20 border-white/5 hover:bg-zinc-900/40'}`}>
               <div className="flex items-center gap-4 w-full">
-                <span className={`text-[10px] font-mono px-4 py-2 rounded-xl font-bold min-w-[65px] text-center ${estaAtrasado ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'bg-zinc-800 text-zinc-500'}`}>{new Date(item.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</span>
+                <span className={`text-[10px] font-mono px-4 py-2 rounded-xl font-bold min-w-[65px] text-center ${estaAtrasado ? 'bg-red-500 text-white shadow-lg' : 'bg-zinc-800 text-zinc-500'}`}>{new Date(item.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</span>
                 <div className="truncate">
                   <p className={`font-bold text-base tracking-tight truncate max-w-[200px] sm:max-w-md ${eConfirmado ? 'line-through text-zinc-600' : 'text-zinc-100'}`}>{item.descricao}</p>
                   <p className="text-[9px] font-black uppercase text-zinc-600 tracking-widest mt-1 italic">{item.categoria}</p>
@@ -255,9 +243,9 @@ export default function GSAFlowV133() {
               <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto border-t border-white/5 pt-4 sm:pt-0 sm:border-none">
                 <span className={`font-black text-lg tracking-tighter ${eConfirmado ? 'text-zinc-700' : item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>{item.tipo === 'entrada' ? '+' : '-'} {formatarMoeda(item.valor)}</span>
                 <div className="flex gap-4">
-                    {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarLancamentos(); }} className="bg-white text-black text-[9px] font-black px-5 py-2 rounded-full uppercase tracking-widest shadow-xl hover:bg-blue-600 hover:text-white transition-all">Pagar</button>}
+                    {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarLancamentos(); }} className="bg-white text-black text-[9px] font-black px-5 py-2 rounded-full uppercase tracking-widest shadow-xl">Pagar</button>}
                     <button onClick={() => { setIdEmEdicao(item.id); setNovaDescricao(item.descricao); setNovoValor(item.valor.toString()); setNovaData(item.data_vencimento); setNovoTipo(item.tipo); setNovaCategoria(item.categoria); setNovoComprovante(item.comprovante_url || ''); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-zinc-700 hover:text-white transition-colors text-xl">✏️</button>
-                    <button onClick={async () => { if(confirm('Remover?')) { await supabase.from('lancamentos').delete().eq('id', item.id); carregarLancamentos(); } }} className="text-zinc-800 hover:text-red-500 transition-colors text-xl">🗑️</button>
+                    <button onClick={async () => { if(confirm('Excluir?')) { await supabase.from('lancamentos').delete().eq('id', item.id); carregarLancamentos(); } }} className="text-zinc-800 hover:text-red-500 transition-colors text-xl">🗑️</button>
                 </div>
               </div>
             </div>

@@ -6,7 +6,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Ba
 // @ts-ignore
 import { Parser } from 'json2csv';
 
-export default function GSAFlowV128() {
+export default function GSAFlowV13() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
@@ -21,14 +21,12 @@ export default function GSAFlowV128() {
   });
 
   const [dataVisualizacao, setDataVisualizacao] = useState(new Date());
-  const [filtroCategoria, setFiltroCategoria] = useState('Todas');
   const [idEmEdicao, setIdEmEdicao] = useState<string | null>(null);
   const [novaDescricao, setNovaDescricao] = useState('');
   const [novoValor, setNovoValor] = useState('');
   const [novaData, setNovaData] = useState(new Date().toISOString().split('T')[0]);
   const [novoTipo, setNovoTipo] = useState('entrada');
   const [novaCategoria, setNovaCategoria] = useState('Freelancer');
-  const [novoComprovante, setNovoComprovante] = useState('');
   const [novoParcelas, setNovoParcelas] = useState(1);
 
   const CORES = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899'];
@@ -45,13 +43,7 @@ export default function GSAFlowV128() {
 
   async function carregarDadosSaaS(userId: string) {
     let { data: prof } = await supabase.from('perfis_usuarios').select('*').eq('id', userId).single();
-    if (prof) {
-      setPerfil(prof);
-    } else {
-      const dataExp = new Date(); dataExp.setDate(dataExp.getDate() + 3);
-      const { data: nProf } = await supabase.from('perfis_usuarios').insert({ id: userId, expira_em: dataExp.toISOString() }).select().single();
-      if (nProf) setPerfil(nProf);
-    }
+    if (prof) setPerfil(prof);
     carregarLancamentos();
   }
 
@@ -121,148 +113,161 @@ export default function GSAFlowV128() {
   });
 
   if (!user && !loading) return (
-    <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center p-6 text-white text-center">
-      <div className="bg-zinc-900 border border-zinc-800 p-10 rounded-[3rem] w-full max-w-md">
-        <h1 className="text-4xl font-black text-blue-500 mb-10 italic uppercase tracking-tighter">GSA FLOW</h1>
-        <form onSubmit={async (e) => { e.preventDefault(); const { error } = isSignUp ? await supabase.auth.signUp({email, password}) : await supabase.auth.signInWithPassword({email, password}); if (error) alert(error.message); else window.location.reload(); }} className="space-y-4">
-          <input type="email" placeholder="E-mail" className="w-full bg-zinc-950 p-4 rounded-2xl border border-zinc-800 text-white outline-none" value={email} onChange={e => setEmail(e.target.value)} required />
-          <input type="password" placeholder="Senha" className="w-full bg-zinc-950 p-4 rounded-2xl border border-zinc-800 text-white outline-none" value={password} onChange={e => setPassword(e.target.value)} required />
-          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-2xl uppercase text-xs tracking-widest">{isSignUp ? 'Criar Conta' : 'Entrar'}</button>
+    <div className="min-h-screen bg-[#06080a] flex items-center justify-center p-6 text-white">
+      <div className="bg-zinc-900/50 border border-white/10 p-10 rounded-[3rem] w-full max-w-md backdrop-blur-xl shadow-2xl text-center">
+        <h1 className="text-4xl font-black text-blue-500 mb-2 italic tracking-tighter">GSA FLOW</h1>
+        <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.4em] mb-10">Agility Systems</p>
+        <form onSubmit={async (e) => { e.preventDefault(); const { error } = isSignUp ? await supabase.auth.signUp({email, password}) : await supabase.auth.signInWithPassword({email, password}); if (error) alert(error.message); else window.location.reload(); }} className="space-y-4 text-left">
+          <input type="email" placeholder="E-mail" className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white outline-none focus:border-blue-500/50" value={email} onChange={e => setEmail(e.target.value)} required />
+          <input type="password" placeholder="Senha" className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white outline-none focus:border-blue-500/50" value={password} onChange={e => setPassword(e.target.value)} required />
+          <button type="submit" className="w-full bg-blue-600 text-white font-black p-4 rounded-2xl uppercase text-[10px] tracking-widest shadow-lg shadow-blue-500/20">{isSignUp ? 'Criar Conta' : 'Acessar Cockpit'}</button>
         </form>
-        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full mt-8 text-zinc-500 text-[9px] font-black uppercase">{isSignUp ? 'Login' : 'Criar Conta'}</button>
+        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full mt-8 text-zinc-600 text-[9px] font-black uppercase tracking-widest">{isSignUp ? 'Já possui acesso? Entrar' : 'Novo por aqui? Solicitar Acesso'}</button>
       </div>
     </div>
   );
 
-  if (loading) return <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center text-blue-500 font-black animate-pulse uppercase italic">GSA FLOW</div>;
+  if (loading) return <div className="min-h-screen bg-[#06080a] flex items-center justify-center text-blue-500 font-black animate-pulse uppercase italic tracking-widest">GSA FLOW</div>;
 
   return (
-    <div className="min-h-screen bg-[#0b0e14] text-white p-4 sm:p-8 font-sans text-sm pb-24 overflow-x-hidden">
+    <div className="min-h-screen bg-[#06080a] text-zinc-300 p-4 sm:p-8 font-sans text-sm pb-24 overflow-x-hidden">
       
-      {/* HEADER */}
+      {/* HEADER ULTRA COMPACTO */}
       <header className="flex flex-col sm:flex-row justify-between items-center mb-10 max-w-7xl mx-auto gap-4">
-        <h1 className="text-3xl font-black text-blue-500 italic uppercase">GSA FLOW</h1>
-        <div className="flex gap-4 items-center">
-            <div className="flex items-center gap-2 text-zinc-500 text-[10px] font-black uppercase">
-                <button onClick={() => setDataVisualizacao(new Date(dataVisualizacao.setMonth(dataVisualizacao.getMonth() - 1)))}>◀</button>
-                <span className="min-w-[120px] text-center">{new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(dataVisualizacao)}</span>
-                <button onClick={() => setDataVisualizacao(new Date(dataVisualizacao.setMonth(dataVisualizacao.getMonth() + 1)))}>▶</button>
+        <div>
+          <h1 className="text-3xl font-black text-blue-500 italic uppercase leading-none tracking-tighter">GSA FLOW</h1>
+          <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-[0.4em] mt-1">{perfil.nome_empresa}</p>
+        </div>
+        <div className="flex gap-4 items-center bg-zinc-900/40 p-2 px-6 rounded-full border border-white/5">
+            <div className="flex items-center gap-4 text-zinc-500 text-[10px] font-black uppercase">
+                <button onClick={() => setDataVisualizacao(new Date(dataVisualizacao.setMonth(dataVisualizacao.getMonth() - 1)))} className="hover:text-white">◀</button>
+                <span className="min-w-[140px] text-center text-zinc-200 tracking-widest">{new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(dataVisualizacao)}</span>
+                <button onClick={() => setDataVisualizacao(new Date(dataVisualizacao.setMonth(dataVisualizacao.getMonth() + 1)))} className="hover:text-white">▶</button>
             </div>
-            <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="px-4 py-2 bg-zinc-900 rounded-full text-[9px] font-black uppercase text-zinc-600 border border-zinc-800">Sair</button>
+            <div className="w-[1px] h-4 bg-white/10 mx-2" />
+            <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-[9px] font-black uppercase text-zinc-500 hover:text-red-400">Sair</button>
         </div>
       </header>
 
-      {/* CARDS VALORES SUPERIORES */}
-      <div className="max-w-7xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-        <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem]"><p className="text-blue-400 text-[8px] font-black uppercase mb-1">Entradas</p><h2 className="text-2xl font-black italic">R$ {totalReceitas.toLocaleString('pt-BR')}</h2></div>
-        <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem]"><p className="text-red-400 text-[8px] font-black uppercase mb-1">Saídas</p><h2 className="text-2xl font-black italic">R$ {totalDespesas.toLocaleString('pt-BR')}</h2></div>
-        <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem]"><p className="text-zinc-500 text-[8px] font-black uppercase mb-1">Saldo</p><h2 className={`text-2xl font-black italic ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>R$ {lucroLiquido.toLocaleString('pt-BR')}</h2></div>
-        <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2rem] border-dashed text-center"><p className="text-zinc-600 text-[8px] font-black uppercase mb-1">Meta</p><h2 className="text-2xl font-black italic text-zinc-400">R$ {perfil.meta_faturamento.toLocaleString('pt-BR')}</h2></div>
+      {/* CARDS COM EFEITO GLASS */}
+      <div className="max-w-7xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] backdrop-blur-md shadow-xl"><p className="text-blue-500 text-[8px] font-black uppercase mb-1 tracking-widest">Entradas</p><h2 className="text-2xl font-black italic text-white">R$ {totalReceitas.toLocaleString('pt-BR')}</h2></div>
+        <div className="bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] backdrop-blur-md shadow-xl"><p className="text-red-500 text-[8px] font-black uppercase mb-1 tracking-widest">Saídas</p><h2 className="text-2xl font-black italic text-white">R$ {totalDespesas.toLocaleString('pt-BR')}</h2></div>
+        <div className="bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] backdrop-blur-md shadow-xl"><p className="text-zinc-500 text-[8px] font-black uppercase mb-1 tracking-widest">Saldo Previsto</p><h2 className={`text-2xl font-black italic ${lucroLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>R$ {lucroLiquido.toLocaleString('pt-BR')}</h2></div>
+        <div className="bg-zinc-900/10 border border-dashed border-white/10 p-6 rounded-[2.5rem] flex items-center justify-center"><p className="text-zinc-600 text-[9px] font-black uppercase italic tracking-widest">Meta: R$ {perfil.meta_faturamento.toLocaleString('pt-BR')}</p></div>
       </div>
 
-      {/* 🚀 TRIPLE COCKPIT (FIXO E ESTÁVEL) */}
+      {/* 🚀 TRIPLE GRID COCKPIT (O CORAÇÃO DA MELHORIA) */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         
-        {/* BLOCO 1: BATERIA */}
-        <div className="bg-zinc-900/40 border border-zinc-800 p-6 rounded-[2.5rem] h-[320px] flex flex-col items-center justify-between shadow-xl">
-            <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Battery Status</p>
-            <div className="relative w-16 h-48 bg-zinc-950 rounded-2xl border-2 border-zinc-800 overflow-hidden shadow-inner">
+        {/* BLOCO 1: BATERIA VERTICAL (Progresso Financeiro) */}
+        <div className="bg-zinc-900/40 border border-white/5 p-8 rounded-[2.5rem] h-[320px] flex flex-col items-center justify-between shadow-2xl relative">
+            <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Meta Progress</p>
+            <div className="relative w-16 h-44 bg-black/60 rounded-2xl border border-white/10 overflow-hidden shadow-inner flex flex-col-reverse">
                 <div 
-                    className="absolute bottom-0 w-full bg-gradient-to-t from-blue-700 to-blue-400 transition-all duration-1000 shadow-[0_0_20px_rgba(37,99,235,0.6)]"
+                    className="w-full bg-gradient-to-t from-blue-700 via-blue-500 to-blue-400 transition-all duration-1000 shadow-[0_0_25px_rgba(59,130,246,0.4)]"
                     style={{ height: `${Math.min(porcentagemMeta, 100)}%` }}
                 />
                 <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-white text-lg font-black italic mix-blend-difference">{porcentagemMeta}%</span>
+                    <span className="text-white text-xl font-black italic mix-blend-difference">{porcentagemMeta}%</span>
                 </div>
             </div>
-            <p className="text-blue-500 text-[8px] font-black uppercase tracking-widest italic">Meta Mensal</p>
+            <p className="text-blue-500/50 text-[8px] font-black uppercase tracking-[0.2em] italic">Battery Capacity</p>
         </div>
 
-        {/* BLOCO 2: TENDÊNCIA */}
-        <div className="bg-zinc-900/40 border border-zinc-800 p-6 rounded-[2.5rem] h-[320px] shadow-xl flex flex-col">
-            <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest mb-4 text-center">Fluxo 5 Meses</p>
+        {/* BLOCO 2: TENDÊNCIA 5 MESES */}
+        <div className="bg-zinc-900/40 border border-white/5 p-6 rounded-[2.5rem] h-[320px] shadow-2xl flex flex-col">
+            <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest mb-6 text-center">Cashflow Trend</p>
             <div className="flex-1 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={dadosCincoMeses}>
-                        <Tooltip cursor={{fill: '#18181b'}} contentStyle={{ backgroundColor: '#000', border: 'none', borderRadius: '12px', fontSize: '10px' }} />
+                        <Tooltip cursor={{fill: 'rgba(255,255,255,0.03)'}} contentStyle={{ backgroundColor: '#000', border: 'none', borderRadius: '15px', fontSize: '10px' }} />
                         <Bar dataKey="receita" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                         <Bar dataKey="despesa" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={9} stroke="#52525b" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={9} stroke="#444" />
                     </BarChart>
                 </ResponsiveContainer>
             </div>
         </div>
 
-        {/* BLOCO 3: CATEGORIAS */}
-        <div className="bg-zinc-900/40 border border-zinc-800 p-6 rounded-[2.5rem] h-[320px] shadow-xl flex flex-col items-center">
-            <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest mb-4 text-center">Categorias</p>
+        {/* BLOCO 3: PIZZA DE CATEGORIAS */}
+        <div className="bg-zinc-900/40 border border-white/5 p-6 rounded-[2.5rem] h-[320px] shadow-2xl flex flex-col items-center">
+            <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest mb-4 text-center">Expenses Mix</p>
             <div className="flex-1 w-full">
                 {gastosPorCategoria.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
-                            <Pie data={gastosPorCategoria} innerRadius={50} outerRadius={65} paddingAngle={5} dataKey="value" stroke="none">
+                            <Pie data={gastosPorCategoria} innerRadius={55} outerRadius={70} paddingAngle={8} dataKey="value" stroke="none">
                                 {gastosPorCategoria.map((_, index) => <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />)}
                             </Pie>
                             <Tooltip contentStyle={{ backgroundColor: '#000', border: 'none', borderRadius: '12px', fontSize: '9px' }} />
-                            <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: '8px', fontWeight: 'black', textTransform: 'uppercase' }} />
+                            <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: '8px', fontWeight: 'black', textTransform: 'uppercase', color: '#555' }} />
                         </PieChart>
                     </ResponsiveContainer>
                 ) : (
-                    <div className="h-full flex items-center justify-center text-zinc-800 text-[8px] font-black uppercase">Vazio</div>
+                    <div className="h-full flex items-center justify-center text-zinc-800 text-[8px] font-black uppercase tracking-widest">No Data Input</div>
                 )}
             </div>
         </div>
       </div>
 
-      {/* FORMULÁRIO */}
-      <div className={`max-w-7xl mx-auto p-6 rounded-[2.5rem] border mb-10 shadow-2xl transition-all ${idEmEdicao ? 'bg-blue-600/10 border-blue-500' : 'bg-zinc-900/40 border-zinc-800/50'}`}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
-          <div className="flex bg-zinc-950 rounded-xl p-1 h-12">
-            <button onClick={() => setNovoTipo('entrada')} className={`flex-1 rounded-lg text-[9px] font-black uppercase ${novoTipo === 'entrada' ? 'bg-blue-600 text-white' : 'text-zinc-600'}`}>Receita</button>
-            <button onClick={() => setNovoTipo('saida')} className={`flex-1 rounded-lg text-[9px] font-black uppercase ${novoTipo === 'saida' ? 'bg-red-600 text-white' : 'text-zinc-600'}`}>Saída</button>
+      {/* FORMULÁRIO DE LANÇAMENTO (Design Unificado) */}
+      <div className={`max-w-7xl mx-auto p-6 rounded-[3rem] border backdrop-blur-sm mb-10 shadow-2xl transition-all duration-500 ${idEmEdicao ? 'bg-blue-600/5 border-blue-500/50' : 'bg-zinc-900/20 border-white/5'}`}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+          <div className="flex bg-black/40 rounded-2xl p-1 h-12 border border-white/5">
+            <button onClick={() => setNovoTipo('entrada')} className={`flex-1 rounded-xl text-[9px] font-black uppercase transition-all ${novoTipo === 'entrada' ? 'bg-blue-600 text-white shadow-lg' : 'text-zinc-600'}`}>Receita</button>
+            <button onClick={() => setNovoTipo('saida')} className={`flex-1 rounded-xl text-[9px] font-black uppercase transition-all ${novoTipo === 'saida' ? 'bg-red-600 text-white shadow-lg' : 'text-zinc-600'}`}>Saída</button>
           </div>
-          <input type="date" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novaData} onChange={e => setNovaData(e.target.value)} />
-          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white font-black uppercase outline-none" value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)}>
+          <input type="date" className="bg-black/40 p-3 h-12 rounded-2xl border border-white/5 text-xs text-zinc-400 outline-none" value={novaData} onChange={e => setNovaData(e.target.value)} />
+          <select className="bg-black/40 p-3 h-12 rounded-2xl border border-white/5 text-xs text-zinc-400 font-black uppercase outline-none" value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)}>
             {perfil.categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
           </select>
-          <select className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white font-black" value={novoParcelas} onChange={e => setNovoParcelas(Number(e.target.value))}>
-            <option value={1}>Único</option><option value={2}>2x</option><option value={6}>6x</option><option value={12}>12x</option>
+          <select className="bg-black/40 p-3 h-12 rounded-2xl border border-white/5 text-xs text-zinc-400 font-black" value={novoParcelas} onChange={e => setNovoParcelas(Number(e.target.value))}>
+            <option value={1}>Único</option><option value={2}>Repetir 2x</option><option value={6}>6x</option><option value={12}>12x</option>
           </select>
-          <input type="text" placeholder="Comprovante" className="bg-zinc-950 p-3 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none" value={novoComprovante} onChange={e => setNovoComprovante(e.target.value)} />
+          <input type="text" placeholder="Link Recibo" className="bg-black/40 p-3 h-12 rounded-2xl border border-white/5 text-xs text-zinc-500 outline-none" value={novoComprovante} onChange={e => setNovoComprovante(e.target.value)} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          <input type="text" placeholder="Descrição" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none focus:border-blue-500" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
-          <input type="number" placeholder="Valor R$" className="bg-zinc-950 p-4 h-12 rounded-xl border border-zinc-800 text-xs text-white outline-none font-mono" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
-          <button onClick={salvarLancamento} className="bg-blue-600 text-white font-black h-12 rounded-xl text-[9px] uppercase tracking-widest shadow-lg shadow-blue-600/20 hover:scale-[1.02] active:scale-95 transition-all">Lançar no Cockpit</button>
+          <input type="text" placeholder="Descrição da Transação" className="bg-black/40 p-4 h-14 rounded-2xl border border-white/5 text-xs text-white outline-none focus:border-blue-500/30" value={novaDescricao} onChange={e => setNovaDescricao(e.target.value)} />
+          <input type="number" placeholder="Valor R$" className="bg-black/40 p-4 h-14 rounded-2xl border border-white/5 text-xs text-white outline-none font-mono focus:border-blue-500/30" value={novoValor} onChange={e => setNovoValor(e.target.value)} />
+          <button onClick={salvarLancamento} className="bg-blue-600 text-white font-black h-14 rounded-2xl text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 hover:scale-[1.01] active:scale-95 transition-all italic">Lançar Fluxo</button>
         </div>
       </div>
 
-      {/* LISTAGEM */}
-      <div className="max-w-7xl mx-auto space-y-2 mb-20">
-        {lancamentosDoMes.map((item) => {
+      {/* LISTAGEM (Otimizada) */}
+      <div className="max-w-7xl mx-auto space-y-3 mb-20">
+        {lancamentosDoMes.length > 0 ? lancamentosDoMes.map((item) => {
           const eConfirmado = item.status === 'confirmado';
           const estaAtrasado = !eConfirmado && new Date(item.data_vencimento + 'T00:00:00') < hoje;
           return (
-            <div key={item.id} className={`flex justify-between items-center p-5 rounded-[1.8rem] border transition-all ${eConfirmado ? 'bg-zinc-950/20 border-zinc-900/50 opacity-60' : estaAtrasado ? 'bg-red-500/10 border-red-500/40 animate-pulse-slow' : 'bg-zinc-900/10 border-zinc-800/40'}`}>
-              <div className="flex items-center gap-4">
-                <span className={`text-[9px] font-mono px-3 py-1.5 rounded-lg ${estaAtrasado ? 'bg-red-500 text-white' : 'bg-zinc-800/50 text-zinc-500'}`}>{new Date(item.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</span>
+            <div key={item.id} className={`flex justify-between items-center p-6 rounded-[2.5rem] border transition-all duration-300 ${eConfirmado ? 'bg-black/20 border-white/5 opacity-50' : estaAtrasado ? 'bg-red-500/5 border-red-500/30 animate-pulse-slow' : 'bg-zinc-900/20 border-white/5 hover:bg-zinc-900/40'}`}>
+              <div className="flex items-center gap-6">
+                <span className={`text-[10px] font-mono px-4 py-2 rounded-xl font-bold ${estaAtrasado ? 'bg-red-500 text-white' : 'bg-zinc-800 text-zinc-500'}`}>{new Date(item.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</span>
                 <div>
-                  <p className={`font-bold ${eConfirmado ? 'line-through text-zinc-600' : 'text-zinc-200'}`}>{item.descricao}</p>
-                  <p className="text-[8px] font-black uppercase text-zinc-700 tracking-widest">{item.categoria}</p>
+                  <p className={`font-bold text-base tracking-tight ${eConfirmado ? 'line-through text-zinc-600' : 'text-zinc-100'}`}>{item.descricao}</p>
+                  <p className="text-[9px] font-black uppercase text-zinc-600 tracking-widest mt-1">{item.categoria}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-6">
-                <span className={`font-black text-lg ${eConfirmado ? 'text-zinc-700' : item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>R$ {Number(item.valor).toLocaleString('pt-BR')}</span>
-                {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarLancamentos(); }} className="bg-white text-black text-[8px] font-black px-4 py-2 rounded-full uppercase tracking-widest shadow-lg">Pagar</button>}
+              <div className="flex items-center gap-8">
+                <span className={`font-black text-xl tracking-tighter ${eConfirmado ? 'text-zinc-700' : item.tipo === 'entrada' ? 'text-blue-500' : 'text-red-500'}`}>{item.tipo === 'entrada' ? '+' : '-'} R$ {Number(item.valor).toLocaleString('pt-BR')}</span>
+                <div className="flex gap-3">
+                    {!eConfirmado && <button onClick={async () => { await supabase.from('lancamentos').update({ status: 'confirmado' }).eq('id', item.id); carregarLancamentos(); }} className="bg-white text-black text-[9px] font-black px-6 py-2 rounded-full uppercase tracking-widest shadow-xl hover:bg-blue-600 hover:text-white transition-all">Pagar</button>}
+                    <button onClick={() => { setIdEmEdicao(item.id); setNovaDescricao(item.descricao); setNovoValor(item.valor.toString()); setNovaData(item.data_vencimento); setNovoTipo(item.tipo); setNovaCategoria(item.categoria); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-zinc-700 hover:text-white transition-colors">✏️</button>
+                    <button onClick={async () => { if(confirm('Excluir transação?')) { await supabase.from('lancamentos').delete().eq('id', item.id); carregarLancamentos(); } }} className="text-zinc-800 hover:text-red-500 transition-colors">🗑️</button>
+                </div>
               </div>
             </div>
           );
-        })}
+        }) : (
+            <div className="text-center py-20 border-2 border-dashed border-white/5 rounded-[3rem]">
+                <p className="text-zinc-700 text-[10px] font-black uppercase tracking-[0.5em]">Sem lançamentos neste período</p>
+            </div>
+        )}
       </div>
 
       <style jsx global>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        @keyframes pulse-red { 0%, 100% { border-color: rgba(239, 68, 68, 0.4); } 50% { border-color: rgba(239, 68, 68, 0.9); } }
+        @keyframes pulse-red { 0%, 100% { border-color: rgba(239, 68, 68, 0.2); } 50% { border-color: rgba(239, 68, 68, 0.5); } }
         .animate-pulse-slow { animation: pulse-red 2s infinite; }
       `}</style>
     </div>
